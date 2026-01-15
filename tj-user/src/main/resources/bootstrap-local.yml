@@ -5,7 +5,8 @@ spring:
       discovery:
         namespace: f923fb34-cb0a-4c06-8fca-ad61ea61a3f0
         group: DEFAULT_GROUP
-        ip: 192.168.150.1
+        ip: 192.168.150.1   #本服务注册到nacos使用的IP地址
+        register-enabled: false   #关闭此服务的注册功能（防止在开发测试中其他开发人员订阅到本地运行的服务）
 logging:
   level:
     com.tianji: debug
