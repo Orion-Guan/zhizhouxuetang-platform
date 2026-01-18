@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @since 2026-01-18
  */
 @RestController
-@RequestMapping("/learning-lesson")
+@RequestMapping("/lessons")
 public class LearningLessonController {
 
 }
