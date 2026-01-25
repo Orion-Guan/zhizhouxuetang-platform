@@ -1,5 +1,6 @@
 package com.tianji.auth.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.auth.domain.po.Role;
 import com.tianji.auth.mapper.RoleMapper;
@@ -31,13 +32,17 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements IR
 
     @Override
     public boolean exists(Long roleId) {
-        Long count = lambdaQuery().eq(Role::getId, roleId).count();
+        QueryWrapper<Role> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("id", roleId);
+        Long count = count(queryWrapper);
         return count > 0;
     }
 
     @Override
     public boolean exists(List<Long> roleIds) {
-        Long count = lambdaQuery().in(Role::getId, roleIds).count();
+        QueryWrapper<Role> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id", roleIds);
+        Long count = count(queryWrapper);
         return count != roleIds.size();
     }
 

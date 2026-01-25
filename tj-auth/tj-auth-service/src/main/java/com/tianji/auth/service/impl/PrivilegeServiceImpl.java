@@ -116,9 +116,9 @@ public class PrivilegeServiceImpl extends ServiceImpl<PrivilegeMapper, Privilege
 
     @Override
     public Set<Long> listPrivilegeByRoleId(Long roleId) {
-        List<RolePrivilege> rolePrivileges = rolePrivilegeService.lambdaQuery()
-                .eq(RolePrivilege::getRoleId, roleId)
-                .list();
+        QueryWrapper<RolePrivilege> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("role_id", roleId);
+        List<RolePrivilege> rolePrivileges = rolePrivilegeService.list(queryWrapper);
         if (CollectionUtil.isEmpty(rolePrivileges)) {
             return Collections.emptySet();
         }
@@ -134,12 +134,14 @@ public class PrivilegeServiceImpl extends ServiceImpl<PrivilegeMapper, Privilege
             throw new CommonException(ROLE_NOT_FOUND);
         }
         // 2.判断权限是否存在
-        Integer privilegeCount = lambdaQuery().in(Privilege::getId, privilegeIds).count();
+        QueryWrapper<Privilege> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id", privilegeIds);
+        Long privilegeCount = count(queryWrapper);
         if (privilegeCount != privilegeIds.size()) {
             throw new CommonException(PRIVILEGE_NOT_FOUND);
         }
         // 3.绑定关系
-        List<RolePrivilege> rolePrivileges = new ArrayList<>(privilegeCount);
+        List<RolePrivilege> rolePrivileges = new ArrayList<>(Math.toIntExact(privilegeCount));
         for (Long privilegeId : privilegeIds) {
             rolePrivileges.add(new RolePrivilege(roleId, privilegeId));
         }

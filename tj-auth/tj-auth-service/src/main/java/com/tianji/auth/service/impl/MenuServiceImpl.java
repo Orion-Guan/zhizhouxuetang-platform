@@ -2,6 +2,7 @@ package com.tianji.auth.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.auth.constants.AuthConstants;
 import com.tianji.auth.domain.po.AccountRole;
@@ -47,7 +48,9 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
         // 1.获取用户信息
         Long userId = UserContext.getUser();
         // 2.查询角色
-        List<AccountRole> accountRoles = accountRoleService.lambdaQuery().eq(AccountRole::getAccountId, userId).list();
+        QueryWrapper<AccountRole> accountRoleQueryWrapper = new QueryWrapper<>();
+        accountRoleQueryWrapper.eq("account_id", userId);
+        List<AccountRole> accountRoles = accountRoleService.list(accountRoleQueryWrapper);
         if (CollUtil.isEmpty(accountRoles)) {
             return Collections.emptyList();
         }
@@ -91,9 +94,9 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
         List<Long> delIds;
         if (menu.getHasChildren()) {
             // 2.1.添加子菜单及父菜单
-            delIds = lambdaQuery()
-                    .eq(Menu::getParentId, id)
-                    .list()
+            QueryWrapper<Menu> menuQueryWrapper = new QueryWrapper<>();
+            menuQueryWrapper.eq("parent_id", id);
+            delIds = baseMapper.selectList(menuQueryWrapper)
                     .stream()
                     .map(Menu::getId)
                     .collect(Collectors.toList());
@@ -117,7 +120,9 @@ public class MenuServiceImpl extends ServiceImpl<MenuMapper, Menu> implements IM
             throw new CommonException(ROLE_NOT_FOUND);
         }
         // 2.判断菜单是否存在
-        Long menuCount = lambdaQuery().in(Menu::getId, menuIds).count();
+        QueryWrapper<Menu> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id", menuIds);
+        Long menuCount = count(queryWrapper);
         if (menuCount != menuIds.size()) {
             throw new CommonException(MENU_NOT_FOUND);
         }
