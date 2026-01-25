@@ -95,7 +95,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         }else {
             page.addOrder(new OrderItem(pageQuery.getSortBy(), pageQuery.getIsAsc()));
         }
-        Page<LearningLesson> paged = lambdaQuery().eq(LearningLesson::getUserId, userId).page(page);
+        Page<LearningLesson> paged = this.lambdaQuery().eq(LearningLesson::getUserId, userId).page(page);
 
         //封装VO
         List<LearningLesson> records = paged.getRecords();
