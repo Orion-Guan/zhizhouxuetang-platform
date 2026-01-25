@@ -68,7 +68,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
                     .setCourseId(courseSimpleInfoDTO.getId())
                     .setCreateTime(LocalDateTime.now());
             return learningLesson;
-        }).toList();
+        }).collect(Collectors.toList());
 
         //新增课程到数据库
         this.saveBatch(lessonList);
