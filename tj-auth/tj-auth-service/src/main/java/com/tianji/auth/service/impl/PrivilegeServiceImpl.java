@@ -1,6 +1,7 @@
 package com.tianji.auth.service.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.auth.common.domain.PrivilegeRoleDTO;
@@ -53,7 +54,7 @@ public class PrivilegeServiceImpl extends ServiceImpl<PrivilegeMapper, Privilege
     public void savePrivilege(Privilege p) {
         p.setMethod(p.getMethod().toUpperCase());
         // 1.判断是否存在
-        Integer count = lambdaQuery()
+        Long count = lambdaQuery()
                 .eq(Privilege::getMethod, p.getMethod())
                 .eq(Privilege::getUri, p.getUri())
                 .count();
