@@ -52,4 +52,27 @@ public class LessonChangeListener {
         log.debug("订单ID{},用户{},购买课程{}，开始添加课程表",orderBasicDTO.getOrderId(), orderBasicDTO.getUserId(), orderBasicDTO.getCourseIds());
         lessonService.addLessons(orderBasicDTO.getOrderId(),orderBasicDTO.getUserId(),orderBasicDTO.getCourseIds());
     }
+
+
+    /**
+     * 用户退款，删除用户购买的此课程
+     * @param orderBasicDTO
+     */
+    @RabbitListener(bindings = {
+            @QueueBinding(
+                    value = @Queue(name = "learning.lesson.refund.queue", durable = "true", arguments = {@Argument(name = "x-queue-mode", value = "lazy")}),
+                    exchange = @Exchange(value = MqConstants.Exchange.ORDER_EXCHANGE, type = ExchangeTypes.TOPIC, durable = "true"),
+                    key = {MqConstants.Key.ORDER_REFUND_KEY}
+            )
+    })
+    public void listenCourseWithDrow(OrderBasicDTO orderBasicDTO){
+        //健壮处理
+        if(null == orderBasicDTO || null == orderBasicDTO.getUserId() || CollUtils.isEmpty(orderBasicDTO.getCourseIds())){
+            log.error("用户退款删除课表失败:{}", JSONUtil.toJsonStr(orderBasicDTO));
+            return;
+        }
+
+        //删除用户课表
+        lessonService.removeLessonOfRefund(orderBasicDTO);
+    }
 }

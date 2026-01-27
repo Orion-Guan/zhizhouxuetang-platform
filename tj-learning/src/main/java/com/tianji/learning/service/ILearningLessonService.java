@@ -1,5 +1,6 @@
 package com.tianji.learning.service;
 
+import com.tianji.api.dto.trade.OrderBasicDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.learning.domain.po.LearningLesson;
@@ -32,4 +33,17 @@ public interface ILearningLessonService extends IService<LearningLesson> {
      * @return
      */
     LearningLessonVO getRecentLearning();
+
+
+    /**
+     * MQ用户退款删除用户课程
+     * @param orderBasicDTO
+     */
+    void removeLessonOfRefund(OrderBasicDTO orderBasicDTO);
+
+    /**
+     * MQ课程删除用户课程
+     * @param courseId
+     */
+    void removeLessonById(String courseId);
 }

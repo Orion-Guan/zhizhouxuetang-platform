@@ -1,7 +1,9 @@
 package com.tianji.learning.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.client.course.CatalogueClient;
@@ -9,6 +11,7 @@ import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.course.CataSimpleInfoDTO;
 import com.tianji.api.dto.course.CourseSearchDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
+import com.tianji.api.dto.trade.OrderBasicDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
@@ -162,5 +165,37 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         learningLessonVO.setCourseAmount(Math.toIntExact(count));
 
         return learningLessonVO;
+    }
+
+
+    /**
+     * MQ用户退款删除用户课程
+     * @param orderBasicDTO
+     */
+    @Override
+    public void removeLessonOfRefund(OrderBasicDTO orderBasicDTO) {
+        Long userId = orderBasicDTO.getUserId();
+        List<Long> courseIds = orderBasicDTO.getCourseIds();
+        LambdaQueryChainWrapper<LearningLesson> wrapper = this.lambdaQuery().eq(LearningLesson::getUserId, userId)
+                .in(LearningLesson::getCourseId, courseIds);
+        boolean remove = this.remove(wrapper);
+        if (!remove){
+            log.warn("用户退款删除其课程失败:{}", JSONUtil.toJsonStr(orderBasicDTO));
+        }
+    }
+
+    /**
+     * MQ课程删除用户课程
+     * @param courseId
+     */
+    @Override
+    public void removeLessonById(String courseId) {
+        //查询预删除的课程状态
+        LearningLesson learningLesson = this.getById(courseId);
+        if(learningLesson == null || !learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue()) || learningLesson.getExpireTime().isAfter(LocalDateTime.now())){
+            log.error("删除课程失败(课程表ID):{}",courseId);
+            throw new BadRequestException("该课程无法删除！");
+        }
+        this.removeById(courseId);
     }
 }

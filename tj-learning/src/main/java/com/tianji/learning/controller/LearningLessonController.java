@@ -10,9 +10,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * <p>
@@ -51,5 +49,17 @@ public class LearningLessonController {
     @ApiOperation("用户最近学习课程")
     public LearningLessonVO getRecentLearning(){
         return iLearningLessonService.getRecentLearning();
+    }
+
+
+    /**
+     * 删除用户某课程
+     * @param courseId
+     */
+    @DeleteMapping("{courseId}")
+    @ApiOperation("删除用户某课程")
+    public void removeLessonById(@PathVariable String courseId){
+        log.info("删除课程入参:{}",courseId);
+        iLearningLessonService.removeLessonById(courseId);
     }
 }
