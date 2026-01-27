@@ -42,4 +42,14 @@ public class LearningLessonController {
         log.info("我的课程分页查询入参:{}", JSONUtil.toJsonStr(pageQuery));
         return iLearningLessonService.getMyLessons(pageQuery);
     }
+
+    /**
+     * 获取用户最近学习课程
+     * @return
+     */
+    @GetMapping("now")
+    @ApiOperation("用户最近学习课程")
+    public LearningLessonVO getRecentLearning(){
+        return iLearningLessonService.getRecentLearning();
+    }
 }

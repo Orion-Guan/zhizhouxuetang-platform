@@ -24,11 +24,12 @@ public class UserInfoInterceptor implements HandlerInterceptor {
             Long userId = Long.valueOf(authorization);
             UserContext.setUser(userId);
             return true;
-        } catch (NumberFormatException e) {
+        }catch (NumberFormatException e) {
             log.error("用户身份信息格式不正确，{}, 原因：{}", authorization, e.getMessage());
             return true;
         }
     }
+
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {

@@ -4,16 +4,21 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.api.client.course.CatalogueClient;
 import com.tianji.api.client.course.CourseClient;
+import com.tianji.api.dto.course.CataSimpleInfoDTO;
+import com.tianji.api.dto.course.CourseSearchDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
+import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.learning.domain.po.LearningLesson;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.enums.LessonStatus;
 import com.tianji.learning.mapper.LearningLessonMapper;
 import com.tianji.learning.service.ILearningLessonService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.beans.Transient;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +47,8 @@ import java.util.stream.Collectors;
 public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper, LearningLesson> implements ILearningLessonService {
 
     private final CourseClient courseClient;
+
+    private final CatalogueClient catalogueClient;
 
     /**
      * 添加用户购买的学习课程到课程表
@@ -116,5 +124,43 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         });
 
         return PageDTO.of(paged,learningLessonVOS);
+    }
+
+    /**
+     * 获取用户最近学习课程
+     * @return
+     */
+    @Override
+    public LearningLessonVO getRecentLearning() {
+        //获取登录用户非未学习状态下的最近学习课程
+        Long userId = UserContext.getUser();
+        LearningLesson learningLesson = this.lambdaQuery().eq(LearningLesson::getUserId, userId)
+                .ne(LearningLesson::getStatus, LessonStatus.NOT_BEGIN)
+                .orderByDesc(LearningLesson::getLatestLearnTime)
+                .last("limit 0,1")
+                .one();
+        if(null == learningLesson){
+            log.error("用户{}:无最近正在学习的课程",userId);
+            return null;
+        }
+        LearningLessonVO learningLessonVO = BeanUtils.copyBean(learningLesson, LearningLessonVO.class);
+
+        //远程调用获取课程相关信息
+        List<CataSimpleInfoDTO> cataSimpleInfoDTOS = catalogueClient.batchQueryCatalogue(Collections.singleton(learningLesson.getLatestSectionId()));
+        if(!CollUtils.isEmpty(cataSimpleInfoDTOS)){
+            CataSimpleInfoDTO cataSimpleInfoDTO = cataSimpleInfoDTOS.get(0);
+            learningLessonVO.setLatestSectionName(cataSimpleInfoDTO.getName());
+            learningLessonVO.setLatestSectionIndex(cataSimpleInfoDTO.getCIndex());
+        }
+
+        //远程调用获取该课程正在学习的章节目录信息
+        CourseSearchDTO searchInfo = courseClient.getSearchInfo(learningLessonVO.getCourseId());
+        learningLessonVO.setCourseName(searchInfo.getName());
+        learningLessonVO.setCourseCoverUrl(searchInfo.getCoverUrl());
+        learningLessonVO.setSections(searchInfo.getSections());
+        Long count = lambdaQuery().eq(LearningLesson::getUserId, userId).count();
+        learningLessonVO.setCourseAmount(Math.toIntExact(count));
+
+        return learningLessonVO;
     }
 }

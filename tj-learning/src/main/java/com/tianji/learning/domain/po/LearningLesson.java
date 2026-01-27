@@ -77,6 +77,4 @@ public class LearningLesson implements Serializable {
     @ApiModelProperty(value = "更新时间")
     @TableField("update_time")
     private LocalDateTime updateTime;
-
-
 }
