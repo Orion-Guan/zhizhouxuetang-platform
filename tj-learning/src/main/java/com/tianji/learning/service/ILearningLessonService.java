@@ -46,4 +46,28 @@ public interface ILearningLessonService extends IService<LearningLesson> {
      * @param courseId
      */
     void removeLessonById(String courseId);
+
+    /**
+     * 校验当前用户是否可以学习当前课程
+     * @param courseId
+     * @return
+     */
+    Long checkCourseValid(Long courseId);
+
+
+    /**
+     * 获取用户课程状态
+     * @param courseId
+     * @return
+     */
+    LearningLessonVO getLessonStatus(Long courseId);
+
+
+    /**
+     * 获取课程学习人数
+     * @param courseId
+     *
+     * @return
+     */
+    Integer getLearningCountById(Long courseId);
 }

@@ -200,4 +200,50 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         }
         this.removeById(courseId);
     }
+
+
+    /**
+     * 校验当前用户是否可以学习当前课程
+     * @param courseId
+     * @return
+     */
+    @Override
+    public Long checkCourseValid(Long courseId) {
+        Long userId = UserContext.getUser();
+        LearningLesson learningLesson = this.lambdaQuery().eq(LearningLesson::getUserId, userId).eq(LearningLesson::getCourseId, courseId).one();
+        if(null == learningLesson || learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue())){
+            log.error("课程不存在或已失效:{}",JSONUtil.toJsonStr(learningLesson));
+            return null;
+        }
+        return learningLesson.getId();
+    }
+
+    /**
+     * 获取用户课程状态
+     * @param courseId
+     * @return
+     */
+    @Override
+    public LearningLessonVO getLessonStatus(Long courseId) {
+        Long userId = UserContext.getUser();
+        LearningLesson learningLesson = this.lambdaQuery().eq(LearningLesson::getUserId, userId).eq(LearningLesson::getCourseId, courseId).one();
+        if(null == learningLesson){
+            log.info("用户{}课表中无此课程:{}",userId,courseId);
+            return null;
+        }
+        return BeanUtils.copyBean(learningLesson, LearningLessonVO.class);
+    }
+
+    /**
+     * 获取课程学习人数
+     * @param courseId
+     *
+     * @return
+     */
+    @Override
+    public Integer getLearningCountById(Long courseId) {
+        Long count = this.lambdaQuery().eq(LearningLesson::getCourseId, courseId).count();
+        return Math.toIntExact(count);
+    }
+
 }
