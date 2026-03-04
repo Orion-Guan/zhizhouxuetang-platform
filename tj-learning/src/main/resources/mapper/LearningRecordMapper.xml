@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tianji.learning.mapper.LearningRecordMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.tianji.learning.domain.po.LearningRecord">
+        <id column="id" property="id" />
+        <result column="lesson_id" property="lessonId" />
+        <result column="section_id" property="sectionId" />
+        <result column="user_id" property="userId" />
+        <result column="moment" property="moment" />
+        <result column="finished" property="finished" />
+        <result column="create_time" property="createTime" />
+        <result column="finish_time" property="finishTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+</mapper>
