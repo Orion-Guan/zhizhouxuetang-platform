@@ -15,10 +15,12 @@ import com.tianji.api.dto.trade.OrderBasicDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
+import com.tianji.common.exceptions.DbException;
 import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.domain.dto.LearningRecordFormDTO;
 import com.tianji.learning.domain.po.LearningLesson;
 import com.tianji.learning.domain.vo.LearningLessonVO;
 import com.tianji.learning.enums.LessonStatus;
@@ -56,16 +58,17 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * 添加用户购买的学习课程到课程表
+     *
      * @param userId
      * @param courseIds
      */
     @Override
     @Transient
-    public void addLessons(Long orderId,Long userId, List<Long> courseIds) {
+    public void addLessons(Long orderId, Long userId, List<Long> courseIds) {
         //获取课程过期时间
         List<CourseSimpleInfoDTO> simpleInfoList = courseClient.getSimpleInfoList(courseIds);
-        if(CollUtils.isEmpty(simpleInfoList)){
-            log.error("MQ消费者为{}订单{}用户添加课程{}失败：系统中无此课程ID",orderId, userId, courseIds);
+        if (CollUtils.isEmpty(simpleInfoList)) {
+            log.error("MQ消费者为{}订单{}用户添加课程{}失败：系统中无此课程ID", orderId, userId, courseIds);
             return;
         }
 
@@ -89,29 +92,30 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * 获取我的课程
+     *
      * @return
      */
     @Override
     public PageDTO<LearningLessonVO> getMyLessons(PageQuery pageQuery) {
         //获取当前登录用户
         Long userId = UserContext.getUser();
-        if(userId == null){
+        if (userId == null) {
             log.error("用户未登录");
             throw new BadRequestException("请先登录系统");
         }
 
         //获取用户课程表
         Page<LearningLesson> page = new Page<>(pageQuery.getPageNo(), pageQuery.getPageSize());
-        if(StringUtils.isEmpty(pageQuery.getSortBy())){
+        if (StringUtils.isEmpty(pageQuery.getSortBy())) {
             page.addOrder(OrderItem.desc("latest_learn_time"));
-        }else {
+        } else {
             page.addOrder(new OrderItem(pageQuery.getSortBy(), pageQuery.getIsAsc()));
         }
         Page<LearningLesson> paged = this.lambdaQuery().eq(LearningLesson::getUserId, userId).page(page);
 
         //封装VO
         List<LearningLesson> records = paged.getRecords();
-        if(CollUtils.isEmpty(records)){
+        if (CollUtils.isEmpty(records)) {
             return PageDTO.empty(paged);
         }
         List<LearningLessonVO> learningLessonVOS = BeanUtil.copyToList(records, LearningLessonVO.class);
@@ -127,11 +131,12 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
             learningLessonVO.setSections(sectionNum);
         });
 
-        return PageDTO.of(paged,learningLessonVOS);
+        return PageDTO.of(paged, learningLessonVOS);
     }
 
     /**
      * 获取用户最近学习课程
+     *
      * @return
      */
     @Override
@@ -143,15 +148,15 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
                 .orderByDesc(LearningLesson::getLatestLearnTime)
                 .last("limit 0,1")
                 .one();
-        if(null == learningLesson){
-            log.error("用户{}:无最近正在学习的课程",userId);
+        if (null == learningLesson) {
+            log.error("用户{}:无最近正在学习的课程", userId);
             return null;
         }
         LearningLessonVO learningLessonVO = BeanUtils.copyBean(learningLesson, LearningLessonVO.class);
 
         //远程调用获取课程相关信息
         List<CataSimpleInfoDTO> cataSimpleInfoDTOS = catalogueClient.batchQueryCatalogue(Collections.singleton(learningLesson.getLatestSectionId()));
-        if(!CollUtils.isEmpty(cataSimpleInfoDTOS)){
+        if (!CollUtils.isEmpty(cataSimpleInfoDTOS)) {
             CataSimpleInfoDTO cataSimpleInfoDTO = cataSimpleInfoDTOS.get(0);
             learningLessonVO.setLatestSectionName(cataSimpleInfoDTO.getName());
             learningLessonVO.setLatestSectionIndex(cataSimpleInfoDTO.getCIndex());
@@ -171,6 +176,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * MQ用户退款删除用户课程
+     *
      * @param orderBasicDTO
      */
     @Override
@@ -181,21 +187,22 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         LambdaQueryChainWrapper<LearningLesson> wrapper = this.lambdaQuery().eq(LearningLesson::getUserId, userId)
                 .in(LearningLesson::getCourseId, courseIds);
         boolean remove = this.remove(wrapper);
-        if (!remove){
+        if (!remove) {
             log.warn("用户退款删除其课程失败:{}", JSONUtil.toJsonStr(orderBasicDTO));
         }
     }
 
     /**
      * MQ课程删除用户课程
+     *
      * @param courseId
      */
     @Override
     public void removeLessonById(String courseId) {
         //查询预删除的课程状态
         LearningLesson learningLesson = this.getById(courseId);
-        if(learningLesson == null || !learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue()) || learningLesson.getExpireTime().isAfter(LocalDateTime.now())){
-            log.error("删除课程失败(课程表ID):{}",courseId);
+        if (learningLesson == null || !learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue()) || learningLesson.getExpireTime().isAfter(LocalDateTime.now())) {
+            log.error("删除课程失败(课程表ID):{}", courseId);
             throw new BadRequestException("该课程无法删除！");
         }
         this.removeById(courseId);
@@ -204,6 +211,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * 校验当前用户是否可以学习当前课程
+     *
      * @param courseId
      * @return
      */
@@ -211,8 +219,8 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
     public Long checkCourseValid(Long courseId) {
         Long userId = UserContext.getUser();
         LearningLesson learningLesson = this.lambdaQuery().eq(LearningLesson::getUserId, userId).eq(LearningLesson::getCourseId, courseId).one();
-        if(null == learningLesson || learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue())){
-            log.error("课程不存在或已失效:{}",JSONUtil.toJsonStr(learningLesson));
+        if (null == learningLesson || learningLesson.getStatus().equalsValue(LessonStatus.EXPIRED.getValue())) {
+            log.error("课程不存在或已失效:{}", JSONUtil.toJsonStr(learningLesson));
             return null;
         }
         return learningLesson.getId();
@@ -220,6 +228,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * 获取用户课程状态
+     *
      * @param courseId
      * @return
      */
@@ -227,8 +236,8 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
     public LearningLessonVO getLessonStatus(Long courseId) {
         Long userId = UserContext.getUser();
         LearningLesson learningLesson = this.lambdaQuery().eq(LearningLesson::getUserId, userId).eq(LearningLesson::getCourseId, courseId).one();
-        if(null == learningLesson){
-            log.info("用户{}课表中无此课程:{}",userId,courseId);
+        if (null == learningLesson) {
+            log.info("用户{}课表中无此课程:{}", userId, courseId);
             return null;
         }
         return BeanUtils.copyBean(learningLesson, LearningLessonVO.class);
@@ -236,14 +245,35 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
 
     /**
      * 获取课程学习人数
-     * @param courseId
      *
+     * @param courseId
      * @return
      */
     @Override
     public Integer getLearningCountById(Long courseId) {
         Long count = this.lambdaQuery().eq(LearningLesson::getCourseId, courseId).count();
         return Math.toIntExact(count);
+    }
+
+
+    /**
+     * 更新课表信息
+     * @param learningRecordFormDTO
+     * @param learningLesson
+     */
+    @Override
+    public void updateLearningInfo(LearningRecordFormDTO learningRecordFormDTO, LearningLesson learningLesson) {
+        CourseSearchDTO clientSearchInfo = courseClient.getSearchInfo(learningLesson.getCourseId());
+        assert null != clientSearchInfo && clientSearchInfo.getSections() != null;
+        learningLesson.setLearnedSections(learningLesson.getLearnedSections() + 1)
+                .setLatestSectionId(learningRecordFormDTO.getSectionId())
+                .setLatestLearnTime(learningRecordFormDTO.getCommitTime())
+                .setUpdateTime(learningRecordFormDTO.getCommitTime())
+                .setStatus(learningLesson.getLearnedSections() + 1 >= clientSearchInfo.getSections() ? LessonStatus.FINISHED : null);
+        boolean result = this.updateById(learningLesson);
+        if (!result) {
+            throw new DbException("更新课表信息失败");
+        }
     }
 
 }
