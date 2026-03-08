@@ -1,12 +1,14 @@
 package com.tianji.learning.service;
 
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.api.dto.trade.OrderBasicDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
+import com.tianji.learning.domain.dto.LearningPlanDTO;
 import com.tianji.learning.domain.dto.LearningRecordFormDTO;
 import com.tianji.learning.domain.po.LearningLesson;
-import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.domain.vo.LearningPlanPageVO;
 
 import java.util.List;
 
@@ -74,4 +76,17 @@ public interface ILearningLessonService extends IService<LearningLesson> {
 
 
     void updateLearningInfo(LearningRecordFormDTO learningRecordFormDTO, LearningLesson learningLesson);
+
+    /**
+     * 创建学习计划
+     * @param learningPlanDTO
+     */
+    void createLearningPlan(LearningPlanDTO learningPlanDTO);
+
+    /**
+     * 查询用户学习计划信息
+     * @param pageQuery
+     * @return
+     */
+    LearningPlanPageVO getCoursePlans(PageQuery pageQuery);
 }

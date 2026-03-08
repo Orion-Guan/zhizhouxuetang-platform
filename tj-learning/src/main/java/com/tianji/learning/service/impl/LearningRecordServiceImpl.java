@@ -1,13 +1,16 @@
 package com.tianji.learning.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.leanring.LearningLessonDTO;
 import com.tianji.api.dto.leanring.LearningRecordDTO;
+import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.DbException;
 import com.tianji.common.utils.BeanUtils;
+import com.tianji.common.utils.DateUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.learning.domain.dto.LearningRecordFormDTO;
 import com.tianji.learning.domain.po.LearningLesson;
@@ -21,7 +24,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * <p>
@@ -128,6 +134,25 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         notFirstFinished(learningRecordFormDTO, learningRecord1);
     }
 
+    /**
+     * 根据课表Id集合查询其下所有课程章节的本周的所有学习记录
+     * @param lessonIdSet
+     * @return
+     */
+    @Override
+    public List<LearningRecord> queryLearningRecordByLessonIds(Set<Long> lessonIdSet) {
+        if(CollUtil.isEmpty(lessonIdSet)){
+            throw new BadRequestException("参数不能为空");
+        }
+        LocalDateTime weekBeginTime = DateUtils.getWeekBeginTime(LocalDate.now());
+        LocalDateTime weekEndTime = DateUtils.getWeekEndTime(LocalDate.now());
+        return this.lambdaQuery()
+                .in(LearningRecord::getLessonId, lessonIdSet)
+                .eq(LearningRecord::getUserId, UserContext.getUser())
+                .eq(LearningRecord::getFinished, true)
+                .between(LearningRecord::getUpdateTime, weekBeginTime, weekEndTime)
+                .list();
+    }
 
 
     private void notFirstFinished(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1) {

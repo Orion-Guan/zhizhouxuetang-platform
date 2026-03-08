@@ -5,6 +5,9 @@ import com.tianji.learning.domain.dto.LearningRecordFormDTO;
 import com.tianji.learning.domain.po.LearningRecord;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * <p>
  * 学习记录表 服务类
@@ -27,4 +30,11 @@ public interface ILearningRecordService extends IService<LearningRecord> {
      * @param learningRecordFormDTO
      */
     void addLearningRecord(LearningRecordFormDTO learningRecordFormDTO);
+
+    /**
+     * 根据课表Id集合查询其下所有课程章节的学习记录
+     * @param lessonIdSet
+     * @return
+     */
+    List<LearningRecord> queryLearningRecordByLessonIds(Set<Long> lessonIdSet);
 }

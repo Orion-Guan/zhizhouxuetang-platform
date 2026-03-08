@@ -2,6 +2,9 @@ package com.tianji.learning.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,23 +23,26 @@ import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.domain.dto.LearningPlanDTO;
 import com.tianji.learning.domain.dto.LearningRecordFormDTO;
 import com.tianji.learning.domain.po.LearningLesson;
+import com.tianji.learning.domain.po.LearningRecord;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.domain.vo.LearningPlanPageVO;
+import com.tianji.learning.domain.vo.LearningPlanVO;
 import com.tianji.learning.enums.LessonStatus;
+import com.tianji.learning.enums.PlanStatus;
 import com.tianji.learning.mapper.LearningLessonMapper;
 import com.tianji.learning.service.ILearningLessonService;
-import lombok.RequiredArgsConstructor;
+import com.tianji.learning.service.ILearningRecordService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.beans.Transient;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -48,13 +54,30 @@ import java.util.stream.Collectors;
  * @since 2026-01-18
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper, LearningLesson> implements ILearningLessonService {
 
     private final CourseClient courseClient;
 
     private final CatalogueClient catalogueClient;
+
+    private final ILearningRecordService iLearningRecordService;
+
+
+    /**
+     * 构造方法，注入学习课程服务所需的依赖组件
+     * @Lazy(解决循环依赖问题)： 当标记为延迟加载时，Spring 会注入一个代理对象，而不是真正的目标 Bean。第一次使用代理时，代理会触发目标 Bean 的加载，并将调用委托给真实对象。
+     * @param courseClient 课程客户端，用于远程调用课程相关服务
+     * @param catalogueClient 目录客户端，用于远程调用课程目录相关服务
+     * @param iLearningRecordService 学习记录服务，使用@Lazy 注解延迟加载，用于处理学习记录相关业务
+     */
+    public LearningLessonServiceImpl(CourseClient courseClient,
+                                     CatalogueClient catalogueClient,
+                                     @Lazy ILearningRecordService iLearningRecordService) {
+        this.courseClient = courseClient;
+        this.catalogueClient = catalogueClient;
+        this.iLearningRecordService = iLearningRecordService;
+    }
 
     /**
      * 添加用户购买的学习课程到课程表
@@ -276,4 +299,81 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         }
     }
 
+
+    /**
+     * 创建用户的学习计划
+     * 设置学习频率并启动学习计划状态
+     *
+     * @param learningPlanDTO 学习计划数据传输对象，包含课程 ID 和学习频率信息
+     */
+    @Override
+    public void createLearningPlan(LearningPlanDTO learningPlanDTO) {
+        Long userId = UserContext.getUser();
+        LearningLessonVO lessonStatus = this.getLessonStatus(learningPlanDTO.getCourseId());
+        if(null == lessonStatus){
+            throw  new BadRequestException("用户尚未购买此课程，创建计划失败");
+        }
+        LambdaUpdateWrapper<LearningLesson> lessonLambdaUpdateWrapper = new LambdaUpdateWrapper<LearningLesson>()
+                .set(LearningLesson::getWeekFreq, learningPlanDTO.getFreq())
+                .set(lessonStatus.getPlanStatus() == PlanStatus.NO_PLAN, LearningLesson::getPlanStatus, PlanStatus.PLAN_RUNNING)
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getCourseId, learningPlanDTO.getCourseId());
+        this.update(lessonLambdaUpdateWrapper);
+    }
+
+
+    @Override
+    public LearningPlanPageVO getCoursePlans(PageQuery pageQuery) {
+        // 分页查询出当前用户所有计划的课程
+        IPage<LearningLesson> page = new Page<>(pageQuery.getPageNo(), pageQuery.getPageSize());
+        LambdaQueryWrapper<LearningLesson> wrapper = new LambdaQueryWrapper<LearningLesson>()
+                .eq(LearningLesson::getUserId, UserContext.getUser())
+                .in(LearningLesson::getStatus,Set.of(LessonStatus.NOT_BEGIN,LessonStatus.LEARNING))
+                .eq(LearningLesson::getPlanStatus, PlanStatus.PLAN_RUNNING);
+        this.page(page, wrapper);
+        List<LearningLesson> learningLessonList = page.getRecords();
+        if(null == learningLessonList){
+            return new LearningPlanPageVO();
+        }
+
+        //获取每个课程的本周已学习章节数
+        Set<Long> LessonIdSet = learningLessonList.stream().map(LearningLesson::getId).collect(Collectors.toSet());
+        List<LearningRecord> learningRecordList = iLearningRecordService.queryLearningRecordByLessonIds(LessonIdSet);
+        Map<Long, Long> lessonCount = new HashMap<>();
+        if(CollUtils.isNotEmpty(learningRecordList)){
+            lessonCount = learningRecordList.stream().collect(Collectors.groupingBy(LearningRecord::getLessonId, Collectors.counting()));
+        }
+
+        //获取课程信息
+        Set<Long> courseIdSet = learningLessonList.stream().map(LearningLesson::getCourseId).collect(Collectors.toSet());
+        Map<Long, CourseSimpleInfoDTO> simpleInfoDTOMap = courseClient.getSimpleInfoList(courseIdSet).stream().collect(Collectors.toMap(CourseSimpleInfoDTO::getId, myself -> myself));
+
+        //封装课表计划数据
+        Map<Long, Long> finalLessonCount = lessonCount;
+        List<LearningPlanVO> learningPlanVOList = learningLessonList.stream().map(learningLesson -> {
+            LearningPlanVO learningPlanVO = BeanUtil.copyProperties(learningLesson, LearningPlanVO.class);
+            CourseSimpleInfoDTO courseSimpleInfoDTO = simpleInfoDTOMap.get(learningLesson.getCourseId());
+            if(BeanUtils.isNotEmpty(courseSimpleInfoDTO)){
+                learningPlanVO.setCourseName(courseSimpleInfoDTO.getName());
+                learningPlanVO.setSections(courseSimpleInfoDTO.getSectionNum());
+            }
+            if(null != finalLessonCount.get(learningLesson.getId())){
+                learningPlanVO.setWeekLearnedSections(Math.toIntExact(finalLessonCount.get(learningLesson.getId())));
+            }
+            return learningPlanVO;
+        }).collect(Collectors.toList());
+
+        LearningPlanPageVO learningPlanPageVO = new LearningPlanPageVO();
+        learningPlanPageVO.setWeekTotalPlan(learningPlanVOList.stream()
+                .mapToInt(vo -> vo.getWeekFreq() == null ? 0 : vo.getWeekFreq())
+                .sum());
+        learningPlanPageVO.setWeekFinished(learningPlanVOList.stream()
+                .mapToInt(vo -> vo.getWeekLearnedSections() == null ? 0 : vo.getWeekLearnedSections())
+                .sum());
+        learningPlanPageVO.setWeekPoints(null);  //todo: 本周学习积分未赋值
+        learningPlanPageVO.setTotal(page.getTotal());
+        learningPlanPageVO.setPages(page.getPages());
+        learningPlanPageVO.setList(learningPlanVOList);
+        return learningPlanPageVO;
+    }
 }
