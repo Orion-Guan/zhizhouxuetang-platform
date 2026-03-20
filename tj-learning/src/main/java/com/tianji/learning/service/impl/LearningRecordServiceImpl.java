@@ -4,7 +4,6 @@ import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.leanring.LearningLessonDTO;
 import com.tianji.api.dto.leanring.LearningRecordDTO;
 import com.tianji.common.exceptions.BadRequestException;
@@ -20,10 +19,12 @@ import com.tianji.learning.enums.SectionType;
 import com.tianji.learning.mapper.LearningRecordMapper;
 import com.tianji.learning.service.ILearningLessonService;
 import com.tianji.learning.service.ILearningRecordService;
+import com.tianji.learning.utils.LearningRecordMergeWriteRequests;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,8 +44,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
 
     private final ILearningLessonService iLearningLessonService;
 
-    private final CourseClient courseClient;
-
+    private final LearningRecordMergeWriteRequests mergeWriteRequests;
 
     /**
      * 查询当前用户指定课程的学习进度
@@ -107,11 +107,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         }
 
         //判断是否首次学习该视频
-        LambdaQueryWrapper<LearningRecord> learningRecordWrapper = new LambdaQueryWrapper<LearningRecord>()
-                .eq(LearningRecord::getLessonId, learningRecordFormDTO.getLessonId())
-                .eq(LearningRecord::getSectionId, learningRecordFormDTO.getSectionId())
-                .eq(LearningRecord::getUserId,UserContext.getUser());
-        LearningRecord learningRecord1 = this.getOne(learningRecordWrapper);
+        LearningRecord learningRecord1 = getCacheDb(learningRecordFormDTO.getLessonId(),learningRecordFormDTO.getSectionId());
         if(learningRecord1 == null){
             firestLearning(learningRecordFormDTO, learningLesson);
             return;
@@ -120,7 +116,12 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         //判断是否已学完
         boolean isFinished = learningRecordFormDTO.getMoment() * 2 >= learningRecordFormDTO.getDuration();
         if(!isFinished){
-            notFinished(learningRecordFormDTO, learningRecord1);
+            learningRecord1.setMoment(learningRecordFormDTO.getMoment())
+                            .setFinished(false)
+                                    .setLessonId(learningRecordFormDTO.getLessonId())
+                                            .setSectionId(learningRecordFormDTO.getSectionId());
+            mergeWriteRequests.addLearningRecordTask(learningRecord1);
+            //notFinished(learningRecordFormDTO, learningRecord1);
             return;
         }
 
@@ -131,7 +132,31 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         }
 
         //更新学习记录信息
-        notFirstFinished(learningRecordFormDTO, learningRecord1);
+        learningRecord1.setMoment(learningRecordFormDTO.getMoment())
+                .setFinished(true)
+                .setLessonId(learningRecordFormDTO.getLessonId())
+                .setSectionId(learningRecordFormDTO.getSectionId());
+        mergeWriteRequests.addLearningRecordTask(learningRecord1);
+        //notFirstFinished(learningRecordFormDTO, learningRecord1);
+    }
+
+    private LearningRecord getCacheDb(@NotNull(message = "课表id不能为空") Long lessonId, @NotNull(message = "节的id不能为空") Long sectionId) {
+        LearningRecord readCacheDb = mergeWriteRequests.readCacheDb(lessonId, sectionId);
+        if(readCacheDb != null){
+            return readCacheDb;
+        }
+        //缓存中无数据从数据库中获取
+        LambdaQueryWrapper<LearningRecord> learningRecordWrapper = new LambdaQueryWrapper<LearningRecord>()
+                .eq(LearningRecord::getLessonId, lessonId)
+                .eq(LearningRecord::getSectionId,sectionId)
+                .eq(LearningRecord::getUserId,UserContext.getUser());
+        readCacheDb = this.getOne(learningRecordWrapper);
+        if(null == readCacheDb){
+            return null;
+        }
+        //写入缓存
+        mergeWriteRequests.writeLearningRecordToRedis(readCacheDb);
+        return readCacheDb;
     }
 
     /**
@@ -155,7 +180,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
     }
 
 
-    private void notFirstFinished(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1) {
+  /*  private void notFirstFinished(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1) {
         LearningRecord learningRecord4 = new LearningRecord()
                 .setId(learningRecord1.getId())
                 .setMoment(learningRecordFormDTO.getMoment())
@@ -171,7 +196,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
                 .setLatestLearnTime(learningRecordFormDTO.getCommitTime())
                 .setUpdateTime(learningRecordFormDTO.getCommitTime());
         iLearningLessonService.updateById(learningLesson1);
-    }
+    }*/
 
 
     private void examProcess(LearningRecordFormDTO learningRecordFormDTO, LearningLesson learningLesson) {
@@ -213,7 +238,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         }
     }
 
-    private void notFinished(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1) {
+ /*   private void notFinished(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1) {
         //更新学习记录信息
         LearningRecord learningRecord2 = new LearningRecord()
                 .setId(learningRecord1.getId())
@@ -229,7 +254,7 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
                 .setLatestLearnTime(learningRecordFormDTO.getCommitTime())
                 .setUpdateTime(learningRecordFormDTO.getCommitTime());
         iLearningLessonService.updateById(learningLesson1);
-    }
+    }*/
 
     private void firstLearned(LearningRecordFormDTO learningRecordFormDTO, LearningRecord learningRecord1, LearningLesson learningLesson) {
         //更新学习记录信息
@@ -243,6 +268,8 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
 
         //更新课表信息
         iLearningLessonService.updateLearningInfo(learningRecordFormDTO, learningLesson);
-        return;
+
+        //清理缓存
+        mergeWriteRequests.deleteCacheDb(learningRecordFormDTO.getLessonId(),learningRecordFormDTO.getSectionId());
     }
 }
