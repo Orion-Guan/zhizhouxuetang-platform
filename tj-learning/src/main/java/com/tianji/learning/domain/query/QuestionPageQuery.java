@@ -6,6 +6,8 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import javax.validation.constraints.NotNull;
+
 @EqualsAndHashCode(callSuper = true)
 @Data
 @ApiModel(description = "互动问题分页查询条件")
@@ -16,5 +18,6 @@ public class QuestionPageQuery extends PageQuery {
     @ApiModelProperty(value = "小节id", example = "1")
     private Long sectionId;
     @ApiModelProperty(value = "是否只查询我的问题", example = "1")
+    @NotNull(message = "onlyMine不能为空")
     private Boolean onlyMine;
 }
