@@ -95,38 +95,23 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
 
         //分页从问题表筛选出数据
         Long userId = UserContext.getUser();
-        Page<InteractionQuestion> questionPage = this.lambdaQuery()
-                .eq(query.getOnlyMine(), InteractionQuestion::getUserId, userId)
-                .eq(query.getCourseId() != null, InteractionQuestion::getCourseId, query.getCourseId())
-                .eq(query.getSectionId() != null, InteractionQuestion::getSectionId, query.getSectionId())
-                .eq(InteractionQuestion::getHidden, false)
-                .select(InteractionQuestion.class, tableFieldInfo -> !tableFieldInfo.getColumn().equals("description"))
-                .page(query.toMpPageDefaultSortByCreateTimeDesc());
+        Page<InteractionQuestion> questionPage = this.lambdaQuery().eq(query.getOnlyMine(), InteractionQuestion::getUserId, userId).eq(query.getCourseId() != null, InteractionQuestion::getCourseId, query.getCourseId()).eq(query.getSectionId() != null, InteractionQuestion::getSectionId, query.getSectionId()).eq(InteractionQuestion::getHidden, false).select(InteractionQuestion.class, tableFieldInfo -> !tableFieldInfo.getColumn().equals("description")).page(query.toMpPageDefaultSortByCreateTimeDesc());
         List<InteractionQuestion> records = questionPage.getRecords();
         if (CollUtil.isEmpty(records)) {
             return PageDTO.empty(questionPage);
         }
 
         // 获取非匿名用户的提问者信息集合
-        Set<Long> userIdSet = records.stream()
-                .filter(interactionQuestion -> interactionQuestion.getAnonymity().equals(false) && interactionQuestion.getUserId() != null)
-                .map(InteractionQuestion::getUserId)
-                .collect(Collectors.toSet());
+        Set<Long> userIdSet = records.stream().filter(interactionQuestion -> interactionQuestion.getAnonymity().equals(false) && interactionQuestion.getUserId() != null).map(InteractionQuestion::getUserId).collect(Collectors.toSet());
         if (CollUtil.isNotEmpty(userIdSet)) {
             userClient.queryUserByIds(userIdSet);
         }
 
         // 获取最近一次回答ID集合
-        Set<Long> recentAnswerIdSet = records.stream()
-                .map(InteractionQuestion::getLatestAnswerId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        Set<Long> recentAnswerIdSet = records.stream().map(InteractionQuestion::getLatestAnswerId).filter(Objects::nonNull).collect(Collectors.toSet());
 
         // 获取非隐藏的回答数据并建立ID映射
-        Map<Long, InteractionReply> replyMap = interactionReplyService.listByIds(recentAnswerIdSet)
-                .stream()
-                .filter(interactionReply -> interactionReply.getHidden().equals(false))
-                .collect(Collectors.toMap(InteractionReply::getId, interactionReply -> interactionReply));
+        Map<Long, InteractionReply> replyMap = interactionReplyService.listByIds(recentAnswerIdSet).stream().filter(interactionReply -> interactionReply.getHidden().equals(false)).collect(Collectors.toMap(InteractionReply::getId, interactionReply -> interactionReply));
         replyMap.forEach((key, value) -> {
             if (value.getAnonymity().equals(false)) {
                 userIdSet.add(value.getUserId());
@@ -134,9 +119,7 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         });
 
         // 批量查询用户信息并建立ID映射
-        Map<Long, UserDTO> userDTOMapById = userClient.queryUserByIds(userIdSet)
-                .stream()
-                .collect(Collectors.toMap(UserDTO::getId, userDTO -> userDTO));
+        Map<Long, UserDTO> userDTOMapById = userClient.queryUserByIds(userIdSet).stream().collect(Collectors.toMap(UserDTO::getId, userDTO -> userDTO));
 
         // 封装结果数据，包括问题信息、用户信息和最新回答信息
         List<QuestionVO> collect = records.stream().map(interactionQuestion -> {
@@ -169,6 +152,7 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
 
     /**
      * 根据ID查询问题详情
+     *
      * @param id 问题ID
      * @return QuestionVO 问题视图对象，如果问题不存在或被隐藏则返回null
      */
@@ -176,20 +160,20 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
     public QuestionVO queryQuestionById(Long id) {
         // 查询出未被隐藏的问题
         InteractionQuestion question = getById(id);
-        if (question == null || question.getHidden()){
+        if (question == null || question.getHidden()) {
             log.warn("问题不存在或被隐藏");
             return null;
         }
-        
+
         // 封装问题基本信息到VO
         QuestionVO questionVO = BeanUtil.toBean(question, QuestionVO.class);
         // 处理非匿名问题的用户信息
-        if(!question.getAnonymity()){
+        if (!question.getAnonymity()) {
             UserDTO userDTO = userClient.queryUserById(question.getUserId());
-            questionVO.setUserName(userDTO != null? userDTO.getName():null);
-            questionVO.setUserIcon(userDTO != null?userDTO.getIcon():null);
+            questionVO.setUserName(userDTO != null ? userDTO.getName() : null);
+            questionVO.setUserIcon(userDTO != null ? userDTO.getIcon() : null);
         }
-        
+
         // 返回封装好的问题VO
         return questionVO;
     }
@@ -197,50 +181,46 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
 
     /**
      * 分页查询后台管理问题列表
-     * 
+     *
      * @param query 查询条件对象，包含课程名称、状态、时间范围等筛选条件
      * @return PageDTO<QuestionAdminVO> 分页结果，包含问题详情及关联的课程、章节、用户等信息
      */
     public PageDTO<QuestionAdminVO> queryAdminQuestionsForPage(QuestionAdminPageQuery query) {
         // 根据课程名称查询对应的课程ID列表
         List<Long> courseIdList = null;
-        if(StrUtil.isNotEmpty(query.getCourseName())){
+        if (StrUtil.isNotEmpty(query.getCourseName())) {
             List<Long> longs = searchClient.queryCoursesIdByName(query.getCourseName());
-            if(CollUtil.isEmpty(longs)){
+            if (CollUtil.isEmpty(longs)) {
                 log.warn("根据课程名称未查询到课程ID");
-                return PageDTO.empty(0L,0L);
+                return PageDTO.empty(0L, 0L);
             }
             courseIdList = longs;
         }
 
         // 执行分页查询，根据各种条件筛选问题
-        Page<InteractionQuestion> questionPage = this.lambdaQuery()
-                .in(CollUtil.isNotEmpty(courseIdList), InteractionQuestion::getCourseId, courseIdList)
-                .eq(query.getStatus() != null, InteractionQuestion::getStatus, query.getStatus())
-                .gt(query.getBeginTime() != null, InteractionQuestion::getCreateTime, query.getBeginTime())
-                .lt(query.getEndTime() != null, InteractionQuestion::getCreateTime, query.getEndTime())
-                .page(query.toMpPageDefaultSortByCreateTimeDesc());
+        Page<InteractionQuestion> questionPage = this.lambdaQuery().in(CollUtil.isNotEmpty(courseIdList), InteractionQuestion::getCourseId, courseIdList).eq(query.getStatus() != null, InteractionQuestion::getStatus, query.getStatus()).gt(query.getBeginTime() != null, InteractionQuestion::getCreateTime, query.getBeginTime()).lt(query.getEndTime() != null, InteractionQuestion::getCreateTime, query.getEndTime()).page(query.toMpPageDefaultSortByCreateTimeDesc());
         List<InteractionQuestion> records = questionPage.getRecords();
-        if(CollUtil.isEmpty(records)){
-            log.debug("未查询到任何数据");;
+        if (CollUtil.isEmpty(records)) {
+            log.debug("未查询到任何数据");
+            ;
             return PageDTO.empty(questionPage);
         }
 
         // 收集所有需要关联查询的ID集合（章节、课程、用户）
-        Set<Long> cataIdSet = new HashSet<>(records.size()*2);
+        Set<Long> cataIdSet = new HashSet<>(records.size() * 2);
         Set<Long> courseIdSet = new HashSet<>(records.size());
         Set<Long> userIdSet = new HashSet<>(records.size());
         records.forEach(interactionQuestion -> {
-            if(null != interactionQuestion.getChapterId()){
+            if (null != interactionQuestion.getChapterId()) {
                 cataIdSet.add(interactionQuestion.getChapterId());
             }
-            if(null != interactionQuestion.getSectionId()){
+            if (null != interactionQuestion.getSectionId()) {
                 cataIdSet.add(interactionQuestion.getSectionId());
             }
-            if(null != interactionQuestion.getCourseId()){
+            if (null != interactionQuestion.getCourseId()) {
                 courseIdSet.add(interactionQuestion.getCourseId());
             }
-            if(null != interactionQuestion.getUserId()){
+            if (null != interactionQuestion.getUserId()) {
                 userIdSet.add(interactionQuestion.getUserId());
             }
         });
@@ -252,45 +232,46 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
 
         // 转换为Map以便快速查找
         Map<Long, String> cataSimpleInfoDTOMap = null;
-        if(CollUtil.isNotEmpty(cataSimpleInfoDTOList)){
+        if (CollUtil.isNotEmpty(cataSimpleInfoDTOList)) {
             cataSimpleInfoDTOMap = cataSimpleInfoDTOList.stream().collect(Collectors.toMap(CataSimpleInfoDTO::getId, CataSimpleInfoDTO::getName));
         }
         Map<Long, CourseSimpleInfoDTO> courseSimpleInfoDTOMap = null;
-        if(CollUtil.isNotEmpty(courseSimpleInfoDTOList)){
+        if (CollUtil.isNotEmpty(courseSimpleInfoDTOList)) {
             courseSimpleInfoDTOMap = courseSimpleInfoDTOList.stream().collect(Collectors.toMap(CourseSimpleInfoDTO::getId, c -> c));
         }
         Map<Long, UserDTO> userDTOMap = null;
-        if(CollUtil.isNotEmpty(userDTOList)){
+        if (CollUtil.isNotEmpty(userDTOList)) {
             userDTOMap = userDTOList.stream().collect(Collectors.toMap(UserDTO::getId, c -> c));
         }
 
         // 遍历查询结果，封装成VO对象
         ArrayList<QuestionAdminVO> questionAdminVOS = new ArrayList<>(records.size());
-        for(InteractionQuestion question : records) {
+        for (InteractionQuestion question : records) {
             QuestionAdminVO questionAdminVO = BeanUtil.toBean(question, QuestionAdminVO.class);
             if (CollUtil.isNotEmpty(cataSimpleInfoDTOMap)) {
-                questionAdminVO.setChapterName(cataSimpleInfoDTOMap.getOrDefault(question.getChapterId(),null));
-                questionAdminVO.setSectionName(cataSimpleInfoDTOMap.getOrDefault(question.getSectionId(),null));
+                questionAdminVO.setChapterName(cataSimpleInfoDTOMap.getOrDefault(question.getChapterId(), null));
+                questionAdminVO.setSectionName(cataSimpleInfoDTOMap.getOrDefault(question.getSectionId(), null));
             }
-            if(CollUtil.isNotEmpty(courseSimpleInfoDTOMap) && courseSimpleInfoDTOMap.get(question.getCourseId()) !=null){
+            if (CollUtil.isNotEmpty(courseSimpleInfoDTOMap) && courseSimpleInfoDTOMap.get(question.getCourseId()) != null) {
                 CourseSimpleInfoDTO courseSimpleInfoDTO = courseSimpleInfoDTOMap.get(question.getCourseId());
                 List<Long> cateIdList = List.of(courseSimpleInfoDTO.getFirstCateId(), courseSimpleInfoDTO.getSecondCateId(), courseSimpleInfoDTO.getThirdCateId());
                 String categoryNames = categoryCache.getCategoryNames(cateIdList);
                 questionAdminVO.setCourseName(courseSimpleInfoDTO.getName());
                 questionAdminVO.setCategoryName(categoryNames);
             }
-            if(CollUtil.isNotEmpty(userDTOMap) && userDTOMap.get(question.getUserId()) != null){
+            if (CollUtil.isNotEmpty(userDTOMap) && userDTOMap.get(question.getUserId()) != null) {
                 questionAdminVO.setUserIcon(userDTOMap.get(question.getUserId()).getIcon());
                 questionAdminVO.setUserName(userDTOMap.get(question.getUserId()).getName());
             }
             questionAdminVOS.add(questionAdminVO);
         }
 
-        return PageDTO.of(questionPage,questionAdminVOS);
+        return PageDTO.of(questionPage, questionAdminVOS);
     }
 
     /**
      * 查询管理端问题详情
+     *
      * @param id
      * @return
      */
@@ -306,7 +287,7 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         //获取其他字段的信息
         List<CataSimpleInfoDTO> cataSimpleInfoDTOS = catalogueClient.batchQueryCatalogue(List.of(question1.getChapterId(), question1.getSectionId()));
         Map<Long, CataSimpleInfoDTO> cataSimpleInfoDTOMap = null;
-        if(CollUtil.isNotEmpty(cataSimpleInfoDTOS)){
+        if (CollUtil.isNotEmpty(cataSimpleInfoDTOS)) {
             cataSimpleInfoDTOMap = cataSimpleInfoDTOS.stream().collect(Collectors.toMap(CataSimpleInfoDTO::getId, cata -> cata));
 
         }
@@ -318,21 +299,21 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         }
         List<UserDTO> userDTOS = userClient.queryUserByIds(userIdSet);
         Map<Long, UserDTO> userDTOMap = null;
-        if(CollUtil.isNotEmpty(userDTOS)){
+        if (CollUtil.isNotEmpty(userDTOS)) {
             userDTOMap = userDTOS.stream().collect(Collectors.toMap(UserDTO::getId, userDTO -> userDTO));
         }
         String categoryNames = null;
-        if(null != courseInfoById){
+        if (null != courseInfoById) {
             categoryNames = categoryCache.getCategoryNames(List.of(courseInfoById.getFirstCateId(), courseInfoById.getSecondCateId(), courseInfoById.getThirdCateId()));
         }
 
         //封装返回数据
         QuestionAdminVO questionAdminVO = BeanUtil.toBean(question1, QuestionAdminVO.class);
-        if(userDTOMap != null){
-            if(userDTOMap.get(question1.getUserId()) != null){
+        if (userDTOMap != null) {
+            if (userDTOMap.get(question1.getUserId()) != null) {
                 questionAdminVO.setUserName(userDTOMap.get(question1.getUserId()).getName());
             }
-            if(userDTOMap.get(question1.getUserId()) != null){
+            if (userDTOMap.get(question1.getUserId()) != null) {
                 questionAdminVO.setUserIcon(userDTOMap.get(question1.getUserId()).getIcon());
             }
             if (courseInfoById != null) {
@@ -344,11 +325,11 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
                 questionAdminVO.setTeacherName(teacherNames);
             }
         }
-        if(cataSimpleInfoDTOMap != null){
-            if( cataSimpleInfoDTOMap.get(question1.getChapterId()) != null){
+        if (cataSimpleInfoDTOMap != null) {
+            if (cataSimpleInfoDTOMap.get(question1.getChapterId()) != null) {
                 questionAdminVO.setChapterName(cataSimpleInfoDTOMap.get(question1.getChapterId()).getName());
             }
-            if(null != cataSimpleInfoDTOMap.get(question1.getSectionId())){
+            if (null != cataSimpleInfoDTOMap.get(question1.getSectionId())) {
                 questionAdminVO.setSectionName(cataSimpleInfoDTOMap.get(question1.getSectionId()).getName());
             }
         }
@@ -358,7 +339,7 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         questionAdminVO.setCategoryName(categoryNames);
 
         //修改问题查看状态
-        if(question1.getStatus() == QuestionStatus.UN_CHECK){
+        if (question1.getStatus() == QuestionStatus.UN_CHECK) {
             InteractionQuestion question = new InteractionQuestion().setId(question1.getId()).setStatus(QuestionStatus.CHECKED);
             this.updateById(question);
         }
