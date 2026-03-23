@@ -1,7 +1,8 @@
 package com.tianji.learning.mapper;
 
-import com.tianji.learning.domain.po.InteractionQuestion;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.tianji.learning.domain.po.InteractionQuestion;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * <p>
@@ -13,4 +14,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 public interface InteractionQuestionMapper extends BaseMapper<InteractionQuestion> {
 
+    @Update("update interaction_question set latest_answer_id = #{id}, answer_times = answer_times+1 where id = #{questionId}")
+    Integer updateInfoById(Long questionId, Long id);
 }
