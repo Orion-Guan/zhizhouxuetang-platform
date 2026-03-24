@@ -159,7 +159,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
             }
         }
 
-        //封装返回数据
+        //封装返回数据 TODO: 用户是否点过赞未处理
         Map<Long, Long> finalLongLongMap = longLongMap;
         Map<Long, InteractionReply> finalReplyMap = replyMap;
         List<ReplyVO> replyVOList = replyList.stream().map(interactionReply -> {
