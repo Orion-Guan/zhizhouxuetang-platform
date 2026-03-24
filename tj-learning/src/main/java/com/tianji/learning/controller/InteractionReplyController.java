@@ -2,16 +2,18 @@ package com.tianji.learning.controller;
 
 
 import cn.hutool.json.JSONUtil;
+import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.learning.domain.dto.ReplyDTO;
+import com.tianji.learning.domain.query.ReplyPageQuery;
+import com.tianji.learning.domain.vo.ReplyVO;
 import com.tianji.learning.service.IInteractionReplyService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 /**
  * <p>
@@ -39,5 +41,18 @@ public class InteractionReplyController {
     public void saveAC(@RequestBody ReplyDTO replyDTO){
         log.debug("新增问题的回答或评论入参: {}", JSONUtil.toJsonStr(replyDTO));
         interactionReplyService.saveAC(replyDTO);
+    }
+
+
+    /**
+     * 用户端分页查询回答或评论
+     * @param replyPageQuery
+     * @return
+     */
+    @GetMapping("page")
+    @ApiOperation("用户端分页查询回答或评论")
+    public PageDTO<ReplyVO> queryAC(@Valid ReplyPageQuery replyPageQuery){
+        log.debug("分页查询回答或评论入参: {}",replyPageQuery);
+        return interactionReplyService.queryAC(replyPageQuery);
     }
 }
