@@ -1,6 +1,6 @@
 # 服务器配置：定义服务端口和编码设置
 server:
-  port: 8090
+  port: 8091
   tomcat:
     uri-encoding: UTF-8
 
