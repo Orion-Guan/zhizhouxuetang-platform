@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Set;
 
-@FeignClient(value = "remark-service",fallback = RemarkClientFallBack.class)
+@FeignClient(value = "remark-service",fallbackFactory = RemarkClientFallBack.class)
 public interface RemarkClient {
 
     /**
