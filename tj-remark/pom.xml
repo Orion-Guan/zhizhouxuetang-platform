@@ -6,7 +6,6 @@
         <groupId>com.tianji</groupId>
         <artifactId>tjxt</artifactId>
         <version>1.0.0</version>
-        <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <artifactId>tj-remark</artifactId>
