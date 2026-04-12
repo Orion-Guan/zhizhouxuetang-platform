@@ -34,7 +34,7 @@ tj:
   swagger:
     enable: true
     enableResponseWrap: true
-    package-path: com.tianji.learning.controller
+    package-path: com.tianji.remark.controller
     title: 天机学堂 - 评论中心接口文档
     description: 该服务包含用户点赞、评论相关功能
     contact-name: 传智教育·研究院

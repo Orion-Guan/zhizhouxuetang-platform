@@ -3,6 +3,7 @@ package com.tianji.learning.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.api.client.remark.RemarkClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.user.UserDTO;
 import com.tianji.common.domain.dto.PageDTO;
@@ -44,6 +45,8 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
     private final InteractionQuestionMapper interactionQuestionMapper;
 
     private final UserClient userClient;
+
+    private final RemarkClient remarkClient;
 
     /**
      * 保存回答或评论，并更新相关统计信息
@@ -159,7 +162,11 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
             }
         }
 
-        //封装返回数据 TODO: 用户是否点过赞未处理
+        //封装用户是否点赞过
+        Set<Long> longSet1 = replyList.stream().map(InteractionReply::getId).collect(Collectors.toSet());
+        Set<Long> cLickStatusByBiz = remarkClient.getCLickStatusByBiz(longSet1);
+
+        //封装返回数据
         Map<Long, Long> finalLongLongMap = longLongMap;
         Map<Long, InteractionReply> finalReplyMap = replyMap;
         List<ReplyVO> replyVOList = replyList.stream().map(interactionReply -> {
@@ -183,6 +190,8 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
                 Long aLong = finalLongLongMap.get(interactionReply.getId());
                 replyVO.setReplyTimes(Math.toIntExact(aLong != null? aLong:0L));
             }
+            //封装用户是否点赞过
+            replyVO.setLiked(cLickStatusByBiz.contains(interactionReply.getId()));
             return replyVO;
         }).collect(Collectors.toList());
         return PageDTO.of(replyPage, replyVOList);
