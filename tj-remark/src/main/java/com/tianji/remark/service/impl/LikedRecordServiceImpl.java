@@ -12,7 +12,6 @@ import com.tianji.remark.domain.po.LikedRecord;
 import com.tianji.remark.mapper.LikedRecordMapper;
 import com.tianji.remark.service.ILikedRecordService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
  * @author Orion.Guan
  * @since 2026-04-07
  */
-@Service
+//@Service
 @RequiredArgsConstructor
 public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, LikedRecord> implements ILikedRecordService {
 
@@ -66,6 +65,12 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
                 .in(LikedRecord::getBizId, biz)
                 .list();
         return list.stream().map(LikedRecord::getBizId).collect(Collectors.toSet());
+    }
+
+
+    @Override
+    public void SyncTheNumberOfLikes(String key, Long maxCheckCount) {
+
     }
 
     /**

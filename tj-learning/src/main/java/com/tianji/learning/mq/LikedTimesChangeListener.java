@@ -12,6 +12,9 @@ import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.*;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,20 +29,24 @@ public class LikedTimesChangeListener {
      * 更新对应的互动回复记录中的点赞次数字段。
      * </p>
      *
-     * @param likedTimesDTO 点赞次数变更数据传输对象，包含业务ID和新的点赞次数值
      */
     @RabbitListener(bindings = {
-         @QueueBinding(
-                 value = @Queue(name = "liked.times.change.queue",durable = "true",arguments = {@Argument(name = "x-queue-mode", value = "lazy")}),
-                 exchange = @Exchange(value = MqConstants.Exchange.LIKE_RECORD_EXCHANGE,type = ExchangeTypes.TOPIC, durable = "true"),
-                 key = {MqConstants.Key.QA_LIKED_TIMES_KEY}
-         )
+            @QueueBinding(
+                    value = @Queue(name = "liked.times.change.queue", durable = "true", arguments = {@Argument(name = "x-queue-mode", value = "lazy")}),
+                    exchange = @Exchange(value = MqConstants.Exchange.LIKE_RECORD_EXCHANGE, type = ExchangeTypes.TOPIC, durable = "true"),
+                    key = {MqConstants.Key.QA_LIKED_TIMES_KEY}
+            )
     })
-    public void clickTimesChange(LikedTimesDTO likedTimesDTO){
-        log.debug("问答系统点赞次数改变消费者:{}", JSONUtil.toJsonStr(likedTimesDTO));
-        InteractionReply interactionReply = new InteractionReply();
-        interactionReply.setId(likedTimesDTO.getBizId())
-                        .setLikedTimes(Math.toIntExact(likedTimesDTO.getLikedTimes()));
-        interactionReplyService.updateById(interactionReply);
+    public void clickTimesChange(List<LikedTimesDTO> likedTimesDTOs) {
+        log.debug("问答系统点赞次数改变消费者:{}", JSONUtil.toJsonStr(likedTimesDTOs));
+
+        List<InteractionReply> interactionReplyList = likedTimesDTOs.stream().map(LikedTimesDTO -> {
+            InteractionReply interactionReply = new InteractionReply();
+            interactionReply.setId(LikedTimesDTO.getBizId())
+                    .setLikedTimes(Math.toIntExact(LikedTimesDTO.getLikedTimes()));
+            return interactionReply;
+        }).collect(Collectors.toList());
+
+        interactionReplyService.updateBatchById(interactionReplyList);
     }
 }

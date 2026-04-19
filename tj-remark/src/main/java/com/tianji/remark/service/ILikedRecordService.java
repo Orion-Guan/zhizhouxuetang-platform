@@ -30,4 +30,11 @@ public interface ILikedRecordService extends IService<LikedRecord> {
      * @return
      */
     Set<Long> getCLickStatusByBiz(List<Long> biz);
+
+    /**
+     * 同步点赞数
+     * @param key
+     * @param maxCheckCount
+     */
+    void SyncTheNumberOfLikes(String key, Long maxCheckCount);
 }
