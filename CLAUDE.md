@@ -153,3 +153,14 @@ public void myMethod(Long userId) { ... }
 
 ### 测试
 `src/test/java` 中的测试文件使用标准的 JUnit 模式，并带有 Spring Boot 测试支持。
+
+```bash
+# 运行所有测试
+mvn test
+
+# 运行单个测试类
+mvn test -Dtest=ClassName
+
+# 运行特定模块的测试
+mvn test -pl tj-learning
+```
