@@ -3,12 +3,15 @@ package com.tianji.learning.service.impl;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
+import com.tianji.common.constants.MqConstants;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.DateUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.learning.contants.RedisConstants;
 import com.tianji.learning.domain.vo.SignResultVO;
+import com.tianji.learning.mq.message.SignedMessage;
 import com.tianji.learning.service.ISignInRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,8 @@ import java.util.List;
 public class ISignInRecordServiceImpl implements ISignInRecordService {
 
     private final StringRedisTemplate redisTemplate;
+
+    private final RabbitMqHelper rabbitMqHelper;
 
 
     @Override
@@ -47,15 +52,30 @@ public class ISignInRecordServiceImpl implements ISignInRecordService {
         //计算连续签到天数和积分
         int signDayCounts  = getSignDays(key, LocalDate.now().getDayOfMonth());
 
+        //获取连续签到奖励的积分
+        int rewardPoint = 0;
+        switch (signDayCounts){
+            case 7:
+                rewardPoint = 10;
+                break;
+            case 14:
+                rewardPoint = 20;
+                break;
+            case 28:
+                rewardPoint = 40;
+                break;
+            default:
+                log.debug("不奖励额外积分:不满足连续签到规定的天数");
+        }
+
         // 添加用户获取的签到积分
-
-
+        rabbitMqHelper.send(MqConstants.Exchange.LEARNING_EXCHANGE,MqConstants.Key.SIGN_IN, SignedMessage.of(userId,1 + rewardPoint));
 
         //封装返回结果
         SignResultVO signResultVO = new SignResultVO();
         signResultVO.setSignDays(signDayCounts);
         signResultVO.setSignPoints(1);
-        signResultVO.setRewardPoints(0);
+        signResultVO.setRewardPoints(rewardPoint);
         return signResultVO;
     }
 
