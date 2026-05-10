@@ -36,7 +36,7 @@ public class LearningRecordController {
      */
     @GetMapping("/course/{courseId}")
     @ApiOperation("查询当前用户指定课程的学习记录")
-    LearningLessonDTO queryLearningRecordByCourse(@PathVariable("courseId") Long courseId) {
+    public LearningLessonDTO queryLearningRecordByCourse(@PathVariable("courseId") Long courseId) {
         log.debug("查询当前用户指定课程的学习记录入参: {}",courseId);
         return iLearningRecordService.queryLearningRecordByCourse(courseId);
     }

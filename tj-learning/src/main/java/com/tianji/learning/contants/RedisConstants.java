@@ -8,4 +8,9 @@ public interface RedisConstants {
      */
     String SIGN_RECORD_PREFIX = "sign:user:{}:{}";
 
+    /**
+     * 用户积分排行榜Redis Key前缀
+     */
+    String USER_POINTS_RANKING_PREFIX = "board:{}";
+
 }
