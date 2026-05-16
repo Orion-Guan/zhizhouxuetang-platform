@@ -41,6 +41,7 @@ java -jar tj-learning/target/tj-learning.jar
 - `shared-mybatis.yaml`
 - `shared-logs.yaml`
 - `shared-feign.yaml`
+- `shared-mq.yaml`
 
 通过 bootstrap 文件中的 `spring.profiles.active` 激活环境（例如：`dev`、`local`）。
 
@@ -61,6 +62,7 @@ java -jar tj-learning/target/tj-learning.jar
 - **tj-media**: 媒体处理（视频存储）
 - **tj-message**: 通知中心（多模块：domain、api、service）
 - **tj-data**: 数据分析
+- **tj-remark**: 点赞/评论互动管理
 
 ### 服务通信模式
 
@@ -75,6 +77,7 @@ java -jar tj-learning/target/tj-learning.jar
 - `SMS_EXCHANGE`: 短信通知
 - `PAY_EXCHANGE`: 支付事件
 - `ERROR_EXCHANGE`: 错误处理
+- `LIKE_RECORD_EXCHANGE`: 点赞记录同步
 
 使用 `RabbitMqHelper` 发送消息：
 ```java
@@ -132,15 +135,20 @@ public void myMethod(Long userId) { ... }
 
 ### 异常处理
 `tj-common` 中的自定义异常：
-- `BizIllegalException`: 业务逻辑错误
 - `BadRequestException`: 无效请求
+- `BizIllegalException`: 业务逻辑错误
 - `DbException`: 数据库错误
 - `ForbiddenException`: 拒绝访问
 - `UnauthorizedException`: 未认证
+- `RequestTimeoutException`: 请求超时
 
 由 `CommonExceptionAdvice` 处理，自动包装为 `R` 响应。
 
 ### 服务特定说明
+
+**网关服务**: 使用 Spring Cloud Gateway 进行路由，每个服务通过短前缀进行映射（例如：`/ls/**` → `learning-service`），并配置 `StripPrefix=1` 去除前缀。全局 CORS 配置允许所有来源。既处理业务请求，也处理公开端点（如认证服务的 JWK 端点），但公开端点需要被配置为白名单。
+
+**认证服务**: 提供基于 JWT 的认证，带有 JWK 公钥端点供其他服务验证令牌。网关使用 `tj-auth-gateway-sdk`，资源服务器使用 `tj-auth-resource-sdk`。每个服务通过 bootstrap.yml 中的 `tj.auth.resource.enable: true` 启用资源认证。
 
 **学习服务**: 处理学习记录、进度跟踪和互动问答。主要功能：
 - 带有每周频率的学习计划
@@ -148,8 +156,6 @@ public void myMethod(Long userId) { ... }
 - 通过 Feign 客户端与课程、交易和用户服务集成
 
 **课程服务**: 管理课程目录、内容和草稿/工作流状态。在发布前使用草稿表进行编辑。
-
-**认证服务**: 提供基于 JWT 的认证，带有 JWK 公钥端点供其他服务验证令牌。网关使用 `tj-auth-gateway-sdk`，资源服务器使用 `tj-auth-resource-sdk`。
 
 ### 测试
 `src/test/java` 中的测试文件使用标准的 JUnit 模式，并带有 Spring Boot 测试支持。

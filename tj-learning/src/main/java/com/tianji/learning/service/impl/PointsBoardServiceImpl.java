@@ -20,8 +20,8 @@ import org.springframework.data.redis.core.BoundZSetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
-import javax.validation.constraints.Min;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class PointsBoardServiceImpl extends ServiceImpl<PointsBoardMapper, PointsBoard> implements IPointsBoardService {
 
     private final StringRedisTemplate stringRedisTemplate;
@@ -95,6 +96,16 @@ public class PointsBoardServiceImpl extends ServiceImpl<PointsBoardMapper, Point
     }
 
     /**
+     * 创建历史赛季的积分榜分表结构
+     * @param tableName
+     */
+    @Override
+    public void createTableOfHistoryBoard(String tableName) {
+        this.getBaseMapper().createTable(tableName);
+    }
+
+
+    /**
      * 查询指定赛季的积分榜
      * @param pointsBoardQuery
      * @return
@@ -112,7 +123,8 @@ public class PointsBoardServiceImpl extends ServiceImpl<PointsBoardMapper, Point
      * @param pageSize 每页查询数量
      * @return 积分榜用户列表，包含用户ID、积分和排名信息
      */
-    private List<PointsBoard> queryCurrentBoard(String key, @Min(value = 1, message = "页码不能小于1") Integer pageNo, @Min(value = 1, message = "每页查询数量不能小于1") Integer pageSize) {
+    @Override
+    public List<PointsBoard> queryCurrentBoard(String key, Integer pageNo, Integer pageSize) {
         // 计算开始位置索引
         int from = (pageNo - 1) * pageSize;
 
