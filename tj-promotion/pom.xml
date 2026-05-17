@@ -7,12 +7,11 @@
         <groupId>com.tianji</groupId>
         <artifactId>tjxt</artifactId>
         <version>1.0.0</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath>../pom.xml</relativePath> <!-- 继承父pom.xml文件配置信息，从当前项目目录查找该坐标对应的pom文件-->
     </parent>
 
     <artifactId>tj-promotion</artifactId>
     <version>1.0.0</version>
-    <name>promotion-service</name>
     <description>tj-promotion</description>
     <url/>
     <licenses>
