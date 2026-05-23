@@ -1,6 +1,8 @@
 package com.tianji.promotion.domain.query;
 
 import com.tianji.common.domain.query.PageQuery;
+import com.tianji.promotion.enums.CouponStatus;
+import com.tianji.promotion.enums.DiscountType;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
