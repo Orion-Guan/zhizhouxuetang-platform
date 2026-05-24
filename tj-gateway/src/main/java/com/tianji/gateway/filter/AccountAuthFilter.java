@@ -30,6 +30,14 @@ public class AccountAuthFilter implements GlobalFilter, Ordered {
         this.authProperties = authProperties;
     }
 
+    /**
+     * 功能：
+     * 1、解析token获取用户信息---->存放到请求头user-info---->供下游微服务使用
+     * 2、进行权限检查----->需要权限检查的访问路径，用户必须登录且有权限则放行；无需权限检查的路径则放行
+     * @param exchange
+     * @param chain
+     * @return
+     */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         // 1.获取请求request信息
@@ -38,7 +46,7 @@ public class AccountAuthFilter implements GlobalFilter, Ordered {
         String path = request.getPath().toString();
         String antPath = method + ":" + path;
 
-        // 2.判断是否是无需登录的路径
+        // 2.判断是否是无需登录的路径（无需登录的路径直接放行）
         if(isExcludePath(antPath)){
             // 直接放行
             return chain.filter(exchange);
@@ -56,7 +64,7 @@ public class AccountAuthFilter implements GlobalFilter, Ordered {
                     .build();
         }
 
-        // 5.校验权限
+        // 5.校验权限（请求路径如需权限效验则进行权限检查（必须登录且有权限），不需要权限检查的路径则放行）
         authUtil.checkAuth(antPath, r);
 
         // 6.放行

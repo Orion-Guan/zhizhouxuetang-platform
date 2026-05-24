@@ -6,6 +6,7 @@ import com.tianji.promotion.domain.dto.CouponFormDTO;
 import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
 import com.tianji.promotion.domain.query.CouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
+import com.tianji.promotion.domain.vo.CouponVO;
 import com.tianji.promotion.service.ICouponService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * <p>
@@ -32,20 +34,26 @@ public class CouponController {
 
     @PostMapping
     @ApiOperation("新增优惠券")
-    public void saveCoupon(@RequestBody @Valid CouponFormDTO couponFormDTO){
+    public void saveCoupon(@RequestBody @Valid CouponFormDTO couponFormDTO) {
         iCouponService.saveCoupon(couponFormDTO);
     }
 
     @GetMapping("page")
     @ApiOperation("分页查询优券")
-    public PageDTO<CouponPageVO> queryPage(CouponQuery couponQuery){
+    public PageDTO<CouponPageVO> queryPage(CouponQuery couponQuery) {
         return iCouponService.queryPage(couponQuery);
     }
 
     @PutMapping("/{id}/issue")
     @ApiOperation("发放优惠券")
-    public void issueCoupon(@RequestBody @Valid CouponIssueFormDTO couponIssueFormDTO){
+    public void issueCoupon(@RequestBody @Valid CouponIssueFormDTO couponIssueFormDTO) {
         iCouponService.issueCoupon(couponIssueFormDTO);
     }
 
+
+    @GetMapping("list")
+    @ApiOperation("查询优惠券")
+    public List<CouponVO> couponList() {
+        return iCouponService.couponList();
+    }
 }

@@ -10,6 +10,14 @@ import javax.servlet.http.HttpServletResponse;
 @Slf4j
 public class LoginAuthInterceptor implements HandlerInterceptor {
 
+    /**
+     * （晚于用户信息拦截器2）如果请求访问的微服务资源路径需要拦截则执行此方法、用户必须登录；若未开启登录拦截则此拦截器不启用。
+     * @param request
+     * @param response
+     * @param handler
+     * @return
+     * @throws Exception
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 1.尝试获取用户信息

@@ -11,6 +11,14 @@ import javax.servlet.http.HttpServletResponse;
 @Slf4j
 public class UserInfoInterceptor implements HandlerInterceptor {
 
+    /**
+     * 请求到达微服务后(先执行此拦截器1): 如果请求携带的有用户信息user-info则将其保存到threadLocal中，无则不保存。
+     * @param request
+     * @param response
+     * @param handler
+     * @return
+     * @throws Exception
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         // 1.尝试获取头信息中的用户信息

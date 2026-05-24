@@ -39,4 +39,6 @@ tj:
     database: tj_promotion
   auth:
     resource:
-      enable: true
+      enable: true  # 启用登录拦截器
+      exclude-login-paths:  # 排除的拦截路径
+        - /coupons/list

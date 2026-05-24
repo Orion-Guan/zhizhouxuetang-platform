@@ -10,29 +10,32 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
+import com.tianji.common.utils.UserContext;
 import com.tianji.promotion.domain.dto.CouponFormDTO;
 import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.CouponScope;
+import com.tianji.promotion.domain.po.UserCoupon;
 import com.tianji.promotion.domain.query.CouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
+import com.tianji.promotion.domain.vo.CouponVO;
 import com.tianji.promotion.enums.CouponStatus;
 import com.tianji.promotion.enums.DiscountType;
 import com.tianji.promotion.enums.ObtainType;
+import com.tianji.promotion.enums.UserCouponStatus;
 import com.tianji.promotion.mapper.CouponMapper;
 import com.tianji.promotion.service.ICouponScopeService;
 import com.tianji.promotion.service.ICouponService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.promotion.service.IExchangeCodeService;
+import com.tianji.promotion.service.IUserCouponService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -52,6 +55,8 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
     private final ICouponScopeService iCouponScopeService;
 
     private final IExchangeCodeService iExchangeCodeService;
+
+    private final IUserCouponService iUserCouponService;
 
     @Override
     public void saveCoupon(CouponFormDTO couponFormDTO) {
@@ -139,10 +144,46 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
         this.updateById(coupon1);
 
         //异步生成兑换码（只有是待发放状态且是指定发放方式）
-        if(coupon.getStatus() == CouponStatus.DRAFT && coupon.getObtainWay() == ObtainType.ISSUE){
+        if (coupon.getStatus() == CouponStatus.DRAFT && coupon.getObtainWay() == ObtainType.ISSUE) {
             coupon.setIssueEndTime(couponIssueFormDTO.getIssueEndTime());
             iExchangeCodeService.generateExchangeCodeByAsync(coupon);
         }
 
+    }
+
+    @Override
+    public List<CouponVO> couponList() {
+        //获取手动领取进行中的优惠券
+        List<Coupon> list = this.lambdaQuery()
+                .eq(Coupon::getObtainWay, ObtainType.PUBLIC)
+                .eq(Coupon::getStatus, CouponStatus.ISSUING)
+                .list();
+        if (CollUtil.isEmpty(list)) {
+            return new ArrayList<>();
+        }
+
+        //获取用户每张优惠券领取的数量
+        Set<Long> couponIdSet = list.stream().map(Coupon::getId).collect(Collectors.toSet());
+        List<UserCoupon> userCouponList = iUserCouponService.lambdaQuery()
+                .eq(UserCoupon::getUserId, UserContext.getUser())
+                .in(UserCoupon::getCouponId, couponIdSet)
+                .list();
+        if (CollUtil.isEmpty(userCouponList)) {
+            userCouponList = new ArrayList<>();
+        }
+        Map<Long, Long> couponCountMapByCouponId = userCouponList.stream().collect(Collectors.groupingBy(UserCoupon::getCouponId, Collectors.counting()));
+
+        //获取用户已领取且未使用的优惠券数量
+        Map<Long, Long> couponCountUnUsedMapByCouponId = userCouponList.stream()
+                .filter(userCoupon -> userCoupon.getStatus() == UserCouponStatus.UNUSED)
+                .collect(Collectors.groupingBy(UserCoupon::getCouponId, Collectors.counting()));
+
+        //封装返回数据
+        return list.stream().map(coupon -> {
+            CouponVO couponVO = BeanUtil.toBean(coupon, CouponVO.class);
+            couponVO.setAvailable(coupon.getIssueNum() < coupon.getTotalNum() && couponCountMapByCouponId.getOrDefault(coupon.getId(), 0L) < coupon.getUserLimit());
+            couponVO.setReceived(couponCountUnUsedMapByCouponId.getOrDefault(coupon.getId(), 0L) > 0);
+            return couponVO;
+        }).collect(Collectors.toList());
     }
 }
