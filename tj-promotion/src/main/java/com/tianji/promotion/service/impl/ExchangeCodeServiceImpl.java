@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.BoundValueOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import static com.tianji.promotion.constant.RedisConstants.PromotionConstants.COUPON_EXCHANGECODE_KEY;
+import static com.tianji.promotion.constant.RedisConstants.PromotionConstants.EXCHANGE_CODE_STATUS_KEY;
 
 /**
  * <p>
@@ -36,7 +38,10 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
 
     private final BoundValueOperations<String, String> boundValueOps;
 
+    private final ValueOperations<String, String> opsForValue;
+
     public ExchangeCodeServiceImpl(StringRedisTemplate redisTemplate) {
+        opsForValue = redisTemplate.opsForValue();
         boundValueOps = redisTemplate.boundValueOps(COUPON_EXCHANGECODE_KEY);
     }
 
@@ -103,4 +108,11 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
             startSerial = Long.valueOf(exchangeCodes.get(exchangeCodes.size() - 1).getId()) + 1;
         }
     }
+
+    @Override
+    public Boolean setAndGetStatusForExchangeCode(long serialNo, boolean i) {
+        return opsForValue.setBit(EXCHANGE_CODE_STATUS_KEY, serialNo, i);
+    }
+
+
 }

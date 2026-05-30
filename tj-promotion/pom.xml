@@ -32,6 +32,12 @@
     </properties>
 
     <dependencies>
+        <!--代理相关依赖-->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
         <!--auth-sdk-->
         <dependency>
             <groupId>com.tianji</groupId>
