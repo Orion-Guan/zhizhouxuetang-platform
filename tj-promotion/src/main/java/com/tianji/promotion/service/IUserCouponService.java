@@ -17,7 +17,7 @@ public interface IUserCouponService extends IService<UserCoupon> {
      * 用户领取优惠券
      * @param couponId
      */
-    void receiveCoupon(Long couponId);
+    void receiveCoupon(Long couponId) throws InterruptedException;
 
     /**
      * 兑换码领取优惠券

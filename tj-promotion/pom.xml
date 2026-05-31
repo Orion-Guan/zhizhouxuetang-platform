@@ -32,6 +32,12 @@
     </properties>
 
     <dependencies>
+        <!--基于redis的分布式锁解决方案客户端工具-->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+        </dependency>
+
         <!--代理相关依赖-->
         <dependency>
             <groupId>org.aspectj</groupId>

@@ -16,6 +16,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.promotion.utils.CodeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -42,8 +45,10 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
 
     private final IExchangeCodeService exchangeCodeService;
 
+    private final RedissonClient redissonClient;
+
     @Override
-    public void receiveCoupon(Long couponId) {
+    public void receiveCoupon(Long couponId) throws InterruptedException {
         // 查询优惠券
         Coupon coupon = couponMapper.selectById(couponId);
         if (null == coupon) {
@@ -57,17 +62,38 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             throw new BizIllegalException("不在领取时间范围内");
         }
 
-        //效验库存（乐观锁特定场景下无需判断库存超卖问题：直接在更新库存数据前检查库存数是否小于总库存即可）
-//        if (coupon.getIssueNum() >= coupon.getTotalNum()) {
-//            log.error("优惠券库存不足：{}", couponId);
-//            throw new BizIllegalException("优惠券库存不足");
-//        }
+        /*
+            //效验库存（乐观锁特定场景下无需判断库存超卖问题：直接在更新库存数据前检查库存数是否小于总库存即可）
+            if (coupon.getIssueNum() >= coupon.getTotalNum()) {
+                log.error("优惠券库存不足：{}", couponId);
+                throw new BizIllegalException("优惠券库存不足");
+            }
+        */
 
-        //效验领取限额并保存数据(悲观锁-同步代码块：解决同个用户并发下领取优惠券超限问题)
-        synchronized (UserContext.getUser().toString().intern()) {
+        /*
+            //效验领取限额并保存数据(悲观锁-同步代码块：解决同个用户并发下领取优惠券超限问题---在服务多实例部署下仍然有并发带来的安全问题)
+            synchronized (UserContext.getUser().toString().intern()) {
+                // 通过获取UserCouponServiceImpl代理对象，来调用其事务方法
+                UserCouponServiceImpl userCouponServiceAgency = (UserCouponServiceImpl) AopContext.currentProxy();
+                userCouponServiceAgency.checkLimitAndSaveUserCoupon(coupon, now);
+            }
+        */
+
+        // 获取锁对象: 防止单用户多次并发领取优惠券导致超限问题
+        String key = "lock:promotion:uid:" + UserContext.getUser();
+        RLock lock = redissonClient.getLock(key);
+        boolean success = lock.tryLock(3, 30, TimeUnit.SECONDS);  //3：表示未获取到锁则排队3秒重试获取锁（底层会触发看门狗守护线程-重置key超时时间，每30/3=10秒）
+        if (!success) {
+            log.error("{}获取锁失败：{}", key, Thread.currentThread().getName());
+            throw new BizIllegalException("勿频繁领取优惠券，请稍后重试");
+        }
+        try {
             // 通过获取UserCouponServiceImpl代理对象，来调用其事务方法
             UserCouponServiceImpl userCouponServiceAgency = (UserCouponServiceImpl) AopContext.currentProxy();
             userCouponServiceAgency.checkLimitAndSaveUserCoupon(coupon, now);
+        } finally {
+            // 不管执行成功与否，最后都要释放锁（底层会使用redis的Lua脚本：确保删除的key是本线程获取到的锁而不是别的线程获取到的锁）
+            lock.unlock();
         }
     }
 
