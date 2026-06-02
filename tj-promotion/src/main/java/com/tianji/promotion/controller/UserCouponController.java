@@ -30,7 +30,7 @@ public class UserCouponController {
 
     @PostMapping("/{id}/receive")
     @ApiOperation("领取优惠券")
-    public void receiveCoupon(@PathVariable("id") Long couponId){
+    public void receiveCoupon(@PathVariable("id") Long couponId) throws InterruptedException {
         userCouponService.receiveCoupon(couponId);
     }
 

@@ -1,11 +1,13 @@
 package com.tianji.promotion.service.impl;
 
+import com.tianji.common.autoconfigure.redisson.annotations.Lock;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.utils.UserContext;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.domain.po.UserCoupon;
+import com.tianji.promotion.enums.DistributedLockType;
 import com.tianji.promotion.enums.ExchangeCodeStatus;
 import com.tianji.promotion.enums.UserCouponStatus;
 import com.tianji.promotion.mapper.CouponMapper;
@@ -14,18 +16,15 @@ import com.tianji.promotion.service.IExchangeCodeService;
 import com.tianji.promotion.service.IUserCouponService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.promotion.utils.CodeUtil;
+import com.tianji.promotion.annotation.DistributedLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -38,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@EnableAspectJAutoProxy(exposeProxy = true) // 开启AOP自动代理并暴漏其代理对象
 public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCoupon> implements IUserCouponService {
 
     private final CouponMapper couponMapper;
@@ -55,6 +53,7 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             log.error("优惠券不存在：{}", couponId);
             throw new BadRequestException("优惠券不存在");
         }
+
         //效验发放领取时间
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(coupon.getIssueBeginTime()) || now.isAfter(coupon.getIssueEndTime())) {
@@ -79,10 +78,10 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             }
         */
 
-        // 获取锁对象: 防止单用户多次并发领取优惠券导致超限问题
+        /*// 获取锁对象: 防止单用户多次并发领取优惠券导致超限问题
         String key = "lock:promotion:uid:" + UserContext.getUser();
         RLock lock = redissonClient.getLock(key);
-        boolean success = lock.tryLock(3, 30, TimeUnit.SECONDS);  //3：表示未获取到锁则排队3秒重试获取锁（底层会触发看门狗守护线程-重置key超时时间，每30/3=10秒）
+        boolean success = lock.tryLock(3, 30, TimeUnit.SECONDS);  //3：表示未获取到锁则排队3秒重试获取锁（过期时间即第二个参数为-1L时：底层会触发看门狗守护线程-重置key超时时间，每30/3=10秒）
         if (!success) {
             log.error("{}获取锁失败：{}", key, Thread.currentThread().getName());
             throw new BizIllegalException("勿频繁领取优惠券，请稍后重试");
@@ -94,13 +93,19 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
         } finally {
             // 不管执行成功与否，最后都要释放锁（底层会使用redis的Lua脚本：确保删除的key是本线程获取到的锁而不是别的线程获取到的锁）
             lock.unlock();
-        }
+        }*/
+
+        // 通过获取UserCouponServiceImpl代理对象，来调用其事务方法
+        UserCouponServiceImpl userCouponServiceAgency = (UserCouponServiceImpl) AopContext.currentProxy();
+        userCouponServiceAgency.checkLimitAndSaveUserCoupon(coupon, now, UserContext.getUser());
     }
 
+
+    @Lock(name = "lock:promotion:uid:#{userId}")
     @Transactional(rollbackFor = Exception.class)
-    public void checkLimitAndSaveUserCoupon(Coupon coupon, LocalDateTime now) {
+    public void checkLimitAndSaveUserCoupon(Coupon coupon, LocalDateTime now, Long userId) {
         Long count = this.lambdaQuery()
-                .eq(UserCoupon::getUserId, UserContext.getUser())
+                .eq(UserCoupon::getUserId, userId)
                 .eq(UserCoupon::getCouponId, coupon.getId())
                 .count();
         if (null != count && count >= coupon.getUserLimit()) {
@@ -130,8 +135,6 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
                 .setTermBeginTime(termBeginTime)
                 .setTermEndTime(termEndTime);
         this.save(userCoupon);
-
-        // throw new RuntimeException("测试事务--没有数据则事务生效");
     }
 
     @Override
@@ -163,7 +166,7 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             }
             //效验优惠券领取限额并保存用户领取优惠券的数据
             Coupon coupon = couponMapper.selectById(exchangeCode.getExchangeTargetId());
-            checkLimitAndSaveUserCoupon(coupon, now);
+            checkLimitAndSaveUserCoupon(coupon, now, UserContext.getUser());
             //自增优惠券库存
             couponMapper.increaseIssueNum(coupon.getId());
             //更新兑换码状态

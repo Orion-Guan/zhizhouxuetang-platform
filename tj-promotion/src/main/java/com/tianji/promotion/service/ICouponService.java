@@ -1,6 +1,7 @@
 package com.tianji.promotion.service;
 
 import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.promotion.annotation.DistributedLock;
 import com.tianji.promotion.domain.dto.CouponFormDTO;
 import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
 import com.tianji.promotion.domain.po.Coupon;
@@ -8,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.promotion.domain.query.CouponQuery;
 import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.domain.vo.CouponVO;
+import org.redisson.api.RLock;
 
 import javax.validation.Valid;
 import java.util.List;
