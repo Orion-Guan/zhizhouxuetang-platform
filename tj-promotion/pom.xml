@@ -32,6 +32,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!--基于redis的分布式锁解决方案客户端工具-->
         <dependency>
             <groupId>org.redisson</groupId>

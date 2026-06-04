@@ -44,6 +44,7 @@ public class CouponController {
         return iCouponService.queryPage(couponQuery);
     }
 
+
     @PutMapping("/{id}/issue")
     @ApiOperation("发放优惠券")
     public void issueCoupon(@RequestBody @Valid CouponIssueFormDTO couponIssueFormDTO) {

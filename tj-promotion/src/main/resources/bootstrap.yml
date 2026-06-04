@@ -24,6 +24,8 @@ spring:
             refresh: false
           - data-id: shared-xxljob.yaml # 共享xxljob配置
             refresh: false  #禁用配置在运行时动态刷新
+          - data-id: shared-mq.yaml # 共享mq配置
+            refresh: false
 tj:
   swagger:
     enable: true
@@ -40,5 +42,10 @@ tj:
   auth:
     resource:
       enable: true  # 启用登录拦截器
-      exclude-login-paths:  # 排除的拦截路径
+      exclude-login-paths: # 排除的拦截路径
         - /coupons/list
+
+  mq:
+    listener:
+      retry:
+        stateless: false #有状态：。有状态重试能够记录事务执行到的阶段或状态，在重试时跳过已成功的部分，仅从失败点继续执行，从而保证数据的一致性
