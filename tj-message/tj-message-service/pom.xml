@@ -80,6 +80,12 @@
             <artifactId>alibabacloud-dysmsapi20170525</artifactId>
             <version>1.0.1</version>
         </dependency>
+        <!--阿里云凭证工具-->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>credentials-java</artifactId>
+            <version>0.2.11</version>
+        </dependency>
     </dependencies>
     <build>
         <finalName>${project.artifactId}</finalName>

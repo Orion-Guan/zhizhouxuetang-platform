@@ -15,4 +15,16 @@
         <result column="update_time" property="updateTime" />
     </resultMap>
 
+    <select id="getAvailableCoupons" resultType="com.tianji.promotion.domain.po.Coupon">
+        select c.id,
+               c.discount_type,
+               c.specific,
+               c.threshold_amount,
+               c.discount_value,
+               c.max_discount_amount,
+               uc.id as `creater`
+        from user_coupon uc
+                 inner join coupon c on uc.coupon_id = c.id and uc.status = 1
+    </select>
+
 </mapper>

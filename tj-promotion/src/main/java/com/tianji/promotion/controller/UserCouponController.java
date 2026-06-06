@@ -1,6 +1,9 @@
 package com.tianji.promotion.controller;
 
 
+import com.tianji.api.dto.promotion.CouponDiscountDTO;
+import com.tianji.api.dto.promotion.OrderCourseDTO;
+import com.tianji.promotion.service.ICouponDiscountService;
 import com.tianji.promotion.service.IUserCouponService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -10,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * <p>
@@ -27,6 +32,7 @@ public class UserCouponController {
 
     private final IUserCouponService userCouponService;
 
+    private final ICouponDiscountService couponDiscountService;
 
     @PostMapping("/{id}/receive")
     @ApiOperation("领取优惠券")
@@ -39,5 +45,12 @@ public class UserCouponController {
     @ApiOperation("兑换码兑换优惠券")
     public void exchangeCodeObtainCoupon(@PathVariable String code){
         userCouponService.exchangeCodeObtainCoupon(code);
+    }
+
+
+    @PostMapping("/available")
+    @ApiOperation("查询可用优惠券折扣方案")
+    public List<CouponDiscountDTO> getCouponDiscountDTOList(List<OrderCourseDTO> orderCourseDTOS){
+        return couponDiscountService.findDiscountSolutions(orderCourseDTOS);
     }
 }

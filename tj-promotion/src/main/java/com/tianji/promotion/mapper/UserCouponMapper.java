@@ -1,7 +1,10 @@
 package com.tianji.promotion.mapper;
 
+import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.UserCoupon;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +16,5 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 public interface UserCouponMapper extends BaseMapper<UserCoupon> {
 
+    List<Coupon> getAvailableCoupons(Long user);
 }
