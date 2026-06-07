@@ -49,8 +49,11 @@ zhizhouxuetang-platform/
 ├── tj-common               # 公共模块
 │   ├── autoconfigure/      # Spring Boot 自动配置
 │   ├── domain/             # 基础领域模型
+│   ├── enums/              # 枚举定义
 │   ├── utils/              # 通用工具类
 │   ├── exceptions/         # 异常定义
+│   ├── filters/            # 过滤器
+│   ├── validate/           # 校验相关
 │   └── constants/          # 常量定义
 ├── tj-auth                 # 认证授权服务
 │   ├── tj-auth-common/     # 认证公共模块
@@ -59,7 +62,11 @@ zhizhouxuetang-platform/
 │   └── tj-auth-service/    # 认证服务实现
 ├── tj-api                  # Feign 客户端 API 接口
 │   └── src/main/java/com/tianji/api/
+│       ├── annotations/    # 注解定义
+│       ├── cache/          # 缓存接口
 │       ├── client/         # Feign 客户端定义
+│       ├── config/         # 配置类
+│       ├── constants/      # 常量定义
 │       └── dto/            # 数据传输对象
 ├── tj-gateway              # API 网关服务
 ├── tj-user                 # 用户管理服务

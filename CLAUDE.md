@@ -105,6 +105,8 @@ Dockerfile 位于项目根目录，基于 openjdk:11.0-jre-buster 镜像。
   - `domain/` - 基础 DTO、查询对象、枚举
   - `exceptions/` - 自定义异常体系
   - `constants/` - 常量定义
+  - `enums/` - 基础枚举接口与实现
+  - `filters/` - 请求过滤器
   - `validate/` - 参数校验相关
 - **tj-auth** - 认证/授权服务
   - `tj-auth-common` - 认证公共模块
