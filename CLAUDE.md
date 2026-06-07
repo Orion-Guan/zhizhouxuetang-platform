@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-Tianji (天机学堂) 是一个基于微服务的在线学习平台，使用 Spring Boot、Spring Cloud 和 Spring Cloud Alibaba 构建。它使用 Nacos 进行服务发现/配置管理，RabbitMQ 进行消息传递，Redis/Redisson 进行缓存/分布式锁，Elasticsearch 进行搜索，MySQL 配合 MyBatis Plus 进行持久化。
+Zhizhouxuetang (知舟学堂) 是一个基于微服务的在线学习平台，使用 Spring Boot、Spring Cloud 和 Spring Cloud Alibaba 构建。它使用 Nacos 进行服务发现/配置管理，RabbitMQ 进行消息传递，Redis/Redisson 进行缓存/分布式锁，Elasticsearch 进行搜索，MySQL 配合 MyBatis Plus 进行持久化。
 
 ## 构建和运行命令
 
@@ -73,8 +73,28 @@ Dockerfile 位于项目根目录，基于 openjdk:11.0-jre-buster 镜像。
 - `shared-logs.yaml` - 日志配置
 - `shared-feign.yaml` - Feign 客户端配置
 - `shared-mq.yaml` - RabbitMQ 配置
+- `shared-xxljob.yaml` - XXL-JOB 定时任务配置（部分模块使用）
 
 通过 bootstrap 文件中的 `spring.profiles.active` 激活环境（`dev`、`local`、`test`、`prod`）。
+
+### 服务端口与名称
+
+| 模块 | 服务名 | 端口 | 功能说明 |
+|------|--------|------|----------|
+| tj-gateway | gateway-service | 10010 | API 网关，路由分发、权限校验 |
+| tj-auth | auth-service | 8081 | 认证授权，JWT 签发，权限管理 |
+| tj-user | user-service | 8082 | 用户管理（学生/教师/员工） |
+| tj-search | search-service | 8083 | 课程搜索、推荐、兴趣 |
+| tj-media | media-service | 8084 | 视频/文件存储与处理 |
+| tj-message | message-service | 8085 | 短信、站内消息、通知模板 |
+| tj-course | course-service | 8086 | 课程分类、目录、章节管理 |
+| tj-pay | pay-service | 8087 | 支付宝支付、退款处理 |
+| tj-trade | trade-service | 8088 | 订单、购物车、退款申请 |
+| tj-exam | exam-service | 8089 | 试题管理、在线考试 |
+| tj-learning | learning-service | 8090 | 学习进度、积分、签到、互动问答 |
+| tj-remark | remark-service | 8091 | 点赞记录管理 |
+| tj-promotion | promotion-service | 8091 | 优惠券、兑换码、促销策略 |
+| tj-data | data-service | 8093 | 数据统计、排行榜、今日数据 |
 
 ## 项目结构
 
@@ -93,24 +113,18 @@ Dockerfile 位于项目根目录，基于 openjdk:11.0-jre-buster 镜像。
   - `tj-auth-service` - 认证服务实现
 - **tj-api** - Feign 客户端接口和 DTO，定义服务间通信契约
 - **tj-gateway** - Spring Cloud Gateway 路由网关
-- **tj-user** - 用户管理服务
-- **tj-course** - 课程目录和内容管理
-- **tj-learning** - 学习进度、记录、积分、签到、互动问答
-- **tj-search** - Elasticsearch 搜索服务
-- **tj-trade** - 订单处理
-- **tj-pay** - 支付集成
-  - `tj-pay-api` - 支付 Feign API
-  - `tj-pay-domain` - 支付领域模型
-  - `tj-pay-service` - 支付服务实现
-- **tj-exam** - 考试管理
-- **tj-media** - 媒体处理（视频存储）
-- **tj-message** - 通知中心
-  - `tj-message-api` - 消息 Feign API
-  - `tj-message-domain` - 消息领域模型
-  - `tj-message-service` - 消息服务实现
-- **tj-data** - 数据分析
-- **tj-remark** - 点赞/评论互动管理
-- **tj-promotion** - 促销模块（优惠券）
+- **tj-user** - 用户管理服务（学生/教师/员工/用户详情/验证码）
+- **tj-course** - 课程管理服务（课程分类Category、课程目录Catalogue、课程信息、课程章节）
+- **tj-learning** - 学习服务（学习课表Lesson、学习记录、积分系统Points、签到SignIn、积分排行榜、互动问答Interaction）
+- **tj-search** - Elasticsearch 搜索服务（课程搜索、课程推荐、用户兴趣）
+- **tj-trade** - 交易服务（购物车Cart、订单Order、订单详情、退款申请）
+- **tj-pay** - 支付服务（支付渠道、支付订单、退款订单、支付回调通知）
+- **tj-exam** - 考试服务（试题管理、业务试题）
+- **tj-media** - 媒体服务（文件上传/下载、视频媒资管理，支持腾讯云 VOD/COS 和阿里云 OSS）
+- **tj-message** - 消息服务（短信SMS、消息模板、通知模板、通知任务、用户收件箱）
+- **tj-data** - 数据服务（今日数据统计、排行榜Board、Top10数据）
+- **tj-remark** - 互动服务（点赞记录LikedRecord，Redis + 定时任务同步到 DB）
+- **tj-promotion** - 促销服务（优惠券Coupon、用户优惠券、兑换码ExchangeCode、优惠券范围、折扣策略工厂）
 
 ### 多模块项目特点
 - 父 POM (`pom.xml`) 管理依赖版本和模块列表
@@ -258,11 +272,12 @@ public void myMethod(Long userId) { ... }
 - 认证服务提供 JWK 公钥端点供其他服务验证令牌
 
 ### 网关服务
-- 使用 Spring Cloud Gateway 进行路由
+- 使用 Spring Cloud Gateway 进行路由，端口 10010
 - 服务映射规则：短前缀 → 服务名（如 `/ls/**` → `learning-service`）
 - 配置 `StripPrefix=1` 去除路由前缀
 - 全局 CORS 配置允许所有来源
 - 公开端点（如 JWK）需配置为白名单
+- 路由规则通过 Nacos 配置中心动态管理
 
 ## 通用工具类
 
